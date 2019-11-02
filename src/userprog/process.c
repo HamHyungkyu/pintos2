@@ -160,6 +160,7 @@ start_process(void *file_name_)
    does nothing. */
 int process_wait(tid_t child_tid UNUSED)
 {
+  printf("wait");
   while (1)
     ;
 }
