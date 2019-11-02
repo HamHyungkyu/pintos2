@@ -84,7 +84,6 @@ tid_t process_execute(const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page(0);
@@ -96,6 +95,8 @@ tid_t process_execute(const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create(fn, PRI_DEFAULT, start_process, fn_copy);
+  // printf("currnt %d\n", list_size(&thread_current()->children));
+  // Todo: free malloc
   if (tid == TID_ERROR)
     palloc_free_page(fn_copy);
   return tid;
@@ -122,7 +123,7 @@ start_process(void *file_name_)
   int argc = 0;
   int argcT = 0;
   char copy_file_name_[256];
-
+  
   strlcpy(copy_file_name_, file_name_, strlen(file_name_) + 1);
 
   for (parse = strtok_r(file_name_, " ", &ptr); parse != NULL; parse = strtok_r(NULL, " ", &ptr))
@@ -137,9 +138,10 @@ start_process(void *file_name_)
     argv[argcT] = parse;
     argcT++;
   }
-
   success = load(file_name_, &if_.eip, &if_.esp);
   push_argument(&if_.esp, argc, argv);
+
+  //Todo: free malloc
 
   /* If load failed, quit. */
   palloc_free_page(file_name);
@@ -170,9 +172,13 @@ start_process(void *file_name_)
    does nothing. */
 int process_wait(tid_t child_tid UNUSED)
 {
+  // printf("child size %d\n", list_size(&thread_current()->children));
   struct thread *child = thread_get_child(child_tid);
-  if (child->status == THREAD_DYING)
+  if (child == NULL || child->status == THREAD_DYING)
+  {
     return -1;
+  }
+
   sema_down(&child->sema_scheduler);
   int exit_value = child->exit_value;
   sema_up(&thread_current()->sema_exit_scheduler);
