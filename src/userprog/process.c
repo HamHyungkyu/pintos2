@@ -174,8 +174,9 @@ int process_wait(tid_t child_tid UNUSED)
   if (child->status == THREAD_DYING)
     return -1;
   sema_down(&child->sema_scheduler);
+  int exit_value = child->exit_value;
   sema_up(&thread_current()->sema_exit_scheduler);
-  return child->exit_value;
+  return exit_value;
 }
 
 /* Free the current process's resources. */
