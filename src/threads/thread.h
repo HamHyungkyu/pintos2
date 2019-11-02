@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -95,9 +96,10 @@ struct thread
 
   int exit_value;
   struct list_elem childelem; /* List elemnnt for child list */
-
-  struct thread *parent; /* Thread pointer of parent */
-  struct list children;  /* List for children threads */
+  struct thread *parent;      /* Thread pointer of parent */
+  struct list children;       /* List for children threads */
+  struct semaphore sema_scheduler;
+  struct semaphore sema_exit_scheduler;
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
   uint32_t *pagedir; /* Page directory. */
@@ -123,6 +125,7 @@ tid_t thread_create(const char *name, int priority, thread_func *, void *);
 
 void thread_block(void);
 void thread_unblock(struct thread *);
+struct thread *thread_get_child(tid_t child_tid);
 
 struct thread *thread_current(void);
 tid_t thread_tid(void);

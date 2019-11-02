@@ -9,7 +9,6 @@
 #include "threads/intr-stubs.h"
 #include "threads/palloc.h"
 #include "threads/switch.h"
-#include "threads/synch.h"
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -238,6 +237,23 @@ void thread_unblock(struct thread *t)
   intr_set_level(old_level);
 }
 
+struct thread *thread_get_child(tid_t child_tid)
+{
+  struct thread *result;
+  struct list_elem *itr;
+  struct list *list = &thread_current()->children;
+  for (itr = list_begin(list); itr != list_end(list); itr = itr->next)
+  {
+    struct thread *child = list_entry(itr, struct thread, childelem);
+    if (child->tid == child_tid)
+    {
+      result = child;
+      break;
+    }
+  }
+  return result;
+}
+
 /* Returns the name of the running thread. */
 const char *
 thread_name(void)
@@ -275,7 +291,8 @@ tid_t thread_tid(void)
 void thread_exit(void)
 {
   ASSERT(!intr_context());
-
+  sema_up(&thread_current()->sema_scheduler);
+  sema_down(&thread_current()->parent->sema_exit_scheduler);
 #ifdef USERPROG
   process_exit();
 #endif
@@ -457,6 +474,8 @@ init_thread(struct thread *t, const char *name, int priority)
   list_init(&t->children);
   old_level = intr_disable();
   list_push_back(&all_list, &t->allelem);
+  sema_init(&t->sema_scheduler, 0);
+  sema_init(&t->sema_exit_scheduler, 0);
   intr_set_level(old_level);
 }
 

@@ -170,9 +170,12 @@ start_process(void *file_name_)
    does nothing. */
 int process_wait(tid_t child_tid UNUSED)
 {
-  for (int i = 0; i < 1000000000; i++)
-    ;
-  return -1;
+  struct thread *child = thread_get_child(child_tid);
+  if (child->status == THREAD_DYING)
+    return -1;
+  sema_down(&child->sema_scheduler);
+  sema_up(&thread_current()->sema_exit_scheduler);
+  return child->exit_value;
 }
 
 /* Free the current process's resources. */
