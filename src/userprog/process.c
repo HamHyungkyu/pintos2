@@ -172,7 +172,6 @@ start_process(void *file_name_)
    does nothing. */
 int process_wait(tid_t child_tid UNUSED)
 {
-  // printf("child size %d\n", list_size(&thread_current()->children));
   struct thread *child = thread_get_child(child_tid);
   if (child == NULL || child->status == THREAD_DYING)
   {
@@ -182,6 +181,8 @@ int process_wait(tid_t child_tid UNUSED)
   sema_down(&child->sema_scheduler);
   int exit_value = child->exit_value;
   sema_up(&thread_current()->sema_exit_scheduler);
+  sema_down(&child->sema_scheduler);
+
   return exit_value;
 }
 

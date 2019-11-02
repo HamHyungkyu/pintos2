@@ -165,7 +165,7 @@ tid_t thread_create(const char *name, int priority,
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
   tid_t tid;
-
+  
   ASSERT(function != NULL);
 
   /* Allocate thread. */
@@ -239,7 +239,7 @@ void thread_unblock(struct thread *t)
 
 struct thread *thread_get_child(tid_t child_tid)
 {
-  struct thread *result;
+  struct thread *result = NULL;
   struct list_elem *itr;
   struct list *list = &thread_current()->children;
   for (itr = list_begin(list); itr != list_end(list); itr = itr->next)
@@ -290,9 +290,12 @@ tid_t thread_tid(void)
    returns to the caller. */
 void thread_exit(void)
 {
+  struct thread * cur = thread_current();
   ASSERT(!intr_context());
-  sema_up(&thread_current()->sema_scheduler);
-  sema_down(&thread_current()->parent->sema_exit_scheduler);
+  sema_up(&cur->sema_scheduler);
+  sema_down(&cur->parent->sema_exit_scheduler);
+  sema_up(&cur->sema_scheduler);
+  list_remove(&cur->childelem);
 #ifdef USERPROG
   process_exit();
 #endif
@@ -301,8 +304,8 @@ void thread_exit(void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable();
-  list_remove(&thread_current()->allelem);
-  thread_current()->status = THREAD_DYING;
+  list_remove(&cur->allelem);
+  cur->status = THREAD_DYING;
   schedule();
   NOT_REACHED();
 }
