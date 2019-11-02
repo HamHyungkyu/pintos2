@@ -23,23 +23,22 @@ void syscall_init(void)
 static void
 syscall_handler(struct intr_frame *f UNUSED)
 {
-  // printf("system call!\n");
-
   int *p = f->esp;
 
   address_checking(*p);
 
+  //printf ("System call: %d\n", *p);
   switch (*p)
   {
   case SYS_HALT:
     halt();
     break;
   case SYS_EXIT:
+    exit(*(p + 1));
     break;
   case SYS_EXEC:
     break;
   case SYS_WAIT:
-    process_wait(1);
     break;
   case SYS_CREATE:
     break;
@@ -52,6 +51,7 @@ syscall_handler(struct intr_frame *f UNUSED)
   case SYS_READ:
     break;
   case SYS_WRITE:
+    f->eax = write(*(p + 1), *(p + 2), *(p + 3));
     break;
   case SYS_SEEK:
     break;
@@ -91,4 +91,14 @@ pid_t exec(const char *cmd_line)
 int wait(pid_t pid)
 {
   return process_wait(pid);
+}
+
+int write(int fd, const void *buffer, unsigned size)
+{
+  if (fd == 1)
+  {
+    putbuf(buffer, size);
+    return size;
+  }
+  return -1;
 }

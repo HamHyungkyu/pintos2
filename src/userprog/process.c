@@ -35,10 +35,9 @@ file_name_parsing(const char *file_name)
 void push_argument(void **esp, int argc, char **argv)
 {
   //argv[i]
-  int length;
   for (int i = argc - 1; i >= 0; i--)
   {
-    length = strlen(argv[i]) + 1;
+    int length = strlen(argv[i]) + 1;
     *esp = *esp - length;
     strlcpy(*esp, argv[i], length);
     argv[i] = *esp;
@@ -71,8 +70,8 @@ void push_argument(void **esp, int argc, char **argv)
   *esp = *esp - 4;
   *(int *)(*esp) = 0;
 
-  printf("stack check\n");
-  hex_dump((uintptr_t)*esp, *esp, 0xc0000000 - ((uintptr_t)*esp), 1);
+  //printf("stack check\n");
+  //hex_dump((uintptr_t)*esp, *esp, 0xc0000000-((uintptr_t)*esp), 1);
 
   return;
 }
@@ -119,13 +118,24 @@ start_process(void *file_name_)
 
   char *parse;
   char *ptr;
-  char *argv[10];
+  char **argv;
   int argc = 0;
+  int argcT = 0;
+  char copy_file_name_[256];
+
+  strlcpy(copy_file_name_, file_name_, strlen(file_name_) + 1);
 
   for (parse = strtok_r(file_name_, " ", &ptr); parse != NULL; parse = strtok_r(NULL, " ", &ptr))
   {
-    argv[argc] = parse;
     argc++;
+  }
+
+  argv = (char **)malloc(sizeof(char *) * argc);
+
+  for (parse = strtok_r(copy_file_name_, " ", &ptr); parse != NULL; parse = strtok_r(NULL, " ", &ptr))
+  {
+    argv[argcT] = parse;
+    argcT++;
   }
 
   success = load(file_name_, &if_.eip, &if_.esp);
@@ -160,9 +170,9 @@ start_process(void *file_name_)
    does nothing. */
 int process_wait(tid_t child_tid UNUSED)
 {
-  printf("wait");
-  while (1)
+  for (int i = 0; i < 1000000000; i++)
     ;
+  return -1;
 }
 
 /* Free the current process's resources. */
