@@ -21,6 +21,59 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+char *
+file_name_parsing(const char *file_name)
+{
+  char * fn;
+  char * ptr;
+
+  fn = strtok_r(file_name, " ", &ptr);
+
+  return fn;
+}
+
+void
+push_argument(void ** esp, int argc, char ** argv){
+  //argv[i]
+  for(int i = argc - 1; i >= 0; i--){
+    int length = strlen(argv[i]) + 1;
+    *esp = *esp - length;
+    strlcpy(*esp, argv[i], length);
+    argv[i] = *esp;
+  }
+
+  //word-align = 0
+  while((int)*esp % 4 != 0){
+    *esp = *esp - 1;
+    *(int *)*esp = 0;
+  }
+
+  //argv[argc] = 0
+  *esp = *esp - 4;
+  *(int *)*esp = 0;
+
+  //argv[0 ~ argc - 1]
+  for(int i = argc - 1; i >= 0; i--){
+    *esp = *esp - 4;
+    **(uint32_t **)esp = argv[i];
+  }
+
+  //(address) argv, argc, 0
+  *esp = *esp -4;
+  *(uintptr_t *)(*esp) = *esp + 4;
+
+  *esp = *esp - 4;
+  *(int *)(*esp) = argc;
+
+  *esp = *esp - 4;
+  *(int *)(*esp) = 0;
+
+  printf("stack check\n");
+  hex_dump((uintptr_t)*esp, *esp, 0xc0000000-((uintptr_t)*esp), 1);
+
+  return;
+}
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -38,8 +91,10 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  char * fn = file_name_parsing(file_name);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -59,7 +114,19 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+
+  char * parse;
+  char * ptr;
+  char * argv[10];
+  int argc = 0;
+
+  for(parse = strtok_r(file_name_, " ", &ptr); parse != NULL; parse = strtok_r(NULL, " ", &ptr)){
+    argv[argc] = parse;
+    argc++;
+  }
+
+  success = load (file_name_, &if_.eip, &if_.esp);
+  push_argument(&if_.esp, argc, argv);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -88,7 +155,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  return -1;
+  while(1);
 }
 
 /* Free the current process's resources. */
