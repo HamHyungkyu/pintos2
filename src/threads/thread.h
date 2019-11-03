@@ -100,6 +100,7 @@ struct thread
   struct list children;       /* List for children threads */
   struct semaphore sema_scheduler;
   struct semaphore sema_exit_scheduler;
+  struct semaphore sema_load;
   struct file* fd[131];
 #ifdef USERPROG
   /* Owned by userprog/process.c. */

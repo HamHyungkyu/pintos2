@@ -40,8 +40,8 @@ void file_lock_release(void);
 
 void syscall_init(void)
 {
-  intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&file_lock);
+  intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
 static void
@@ -80,7 +80,9 @@ syscall_handler(struct intr_frame *f UNUSED)
     f->eax = remove(*(p + 1));
     break;
   case SYS_OPEN:
+    file_lock_acquire();
     f->eax = open(*(p + 1));
+    file_lock_release();
     break;
   case SYS_FILESIZE:
     address_checking(p + 1);

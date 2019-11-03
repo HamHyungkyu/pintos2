@@ -293,9 +293,10 @@ void thread_exit(void)
   struct thread * cur = thread_current();
   ASSERT(!intr_context());
   sema_up(&cur->sema_scheduler);
-  sema_down(&cur->parent->sema_exit_scheduler);
+  sema_down(&cur->sema_exit_scheduler);
   sema_up(&cur->sema_scheduler);
   list_remove(&cur->childelem);
+  
 #ifdef USERPROG
   process_exit();
 #endif
@@ -479,6 +480,7 @@ init_thread(struct thread *t, const char *name, int priority)
   list_push_back(&all_list, &t->allelem);
   sema_init(&t->sema_scheduler, 0);
   sema_init(&t->sema_exit_scheduler, 0);
+  sema_init(&t->sema_load, 0);
   intr_set_level(old_level);
 
   for(int i = 0; i < 131; i++){
