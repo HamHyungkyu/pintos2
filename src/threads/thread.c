@@ -293,7 +293,7 @@ void thread_exit(void)
   struct thread * cur = thread_current();
   ASSERT(!intr_context());
   sema_up(&cur->sema_scheduler);
-  sema_down(&cur->parent->sema_exit_scheduler);
+  sema_down(&cur->sema_exit_scheduler);
   sema_up(&cur->sema_scheduler);
   list_remove(&cur->childelem);
 #ifdef USERPROG
