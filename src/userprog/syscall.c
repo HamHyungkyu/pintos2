@@ -172,9 +172,14 @@ int open(const char * file){
   struct file * fp = filesys_open(file);
   if(fp){
     for(int i = 3; i < 128; i++){
-      if(thread_current()->fd[i] == NULL){
+      struct file* file_in_fd = thread_current()->fd[i];
+      if(file_in_fd == NULL){
         thread_current()->fd[i] = fp;
         return i;
+      } 
+      else if(inode_get_inumber(file_get_inode(file_in_fd)) == inode_get_inumber(file_get_inode(fp))){
+        file_close(fp);
+        fp = file_reopen(file_in_fd);
       }
     }
   }
@@ -215,7 +220,8 @@ int write(int fd, const void *buffer, unsigned size)
   }
   else{
     if(thread_current()->fd[fd] != NULL){
-      return file_write(thread_current()->fd[fd], buffer, size);
+      int buf = file_write(thread_current()->fd[fd], buffer, size);
+      return buf;
     }
     else{
       return -1;
@@ -233,6 +239,7 @@ unsigned tell(int fd){
 
 void close(int fd) {
   if(thread_current()->fd[fd] != NULL){
+    file_allow_write(thread_current()->fd[fd]);
     thread_current()->fd[fd] = NULL;
     return file_close(thread_current()->fd[fd]);
   }
