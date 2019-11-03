@@ -26,7 +26,6 @@ file_name_parsing(const char *file_name)
 {
   char *fn;
   char *ptr;
-
   fn = strtok_r(file_name, " ", &ptr);
 
   return fn;
@@ -70,8 +69,8 @@ void push_argument(void **esp, int argc, char **argv)
   *esp = *esp - 4;
   *(int *)(*esp) = 0;
 
-  //printf("stack check\n");
-  //hex_dump((uintptr_t)*esp, *esp, 0xc0000000-((uintptr_t)*esp), 1);
+  // printf("stack check\n");
+  // hex_dump((uintptr_t)*esp, *esp, 0xc0000000-((uintptr_t)*esp), 1);
 
   return;
 }
@@ -83,22 +82,24 @@ void push_argument(void **esp, int argc, char **argv)
 tid_t process_execute(const char *file_name)
 {
   char *fn_copy;
+  char *filname_copy;
   tid_t tid;
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page(0);
+  filname_copy = palloc_get_page(0);
   if (fn_copy == NULL)
     return TID_ERROR;
+
   strlcpy(fn_copy, file_name, PGSIZE);
+  strlcpy(filname_copy, file_name, PGSIZE);
 
-  char *fn = file_name_parsing(file_name);
-
+  char *fn = file_name_parsing(filname_copy);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create(fn, PRI_DEFAULT, start_process, fn_copy);
-  // printf("currnt %d\n", list_size(&thread_current()->children));
-  // Todo: free malloc
   if (tid == TID_ERROR)
     palloc_free_page(fn_copy);
+  palloc_free_page(filname_copy);
   return tid;
 }
 
@@ -142,7 +143,6 @@ start_process(void *file_name_)
   push_argument(&if_.esp, argc, argv);
 
   free(argv);
-  //Todo: free malloc
 
   /* If load failed, quit. */
   palloc_free_page(file_name);
