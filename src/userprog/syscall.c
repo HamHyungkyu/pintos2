@@ -34,9 +34,14 @@ void close(int fd);
 void file_checking(const char * file);
 void thread_close(int status);
 
+static struct lock file_lock;
+void file_lock_acquire(void);
+void file_lock_release(void);
+
 void syscall_init(void)
 {
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init(&file_lock);
 }
 
 static void
@@ -84,12 +89,16 @@ syscall_handler(struct intr_frame *f UNUSED)
   case SYS_READ:
     address_checking(p + 1);
     address_checking(p + 3);
+    file_lock_acquire();
     f->eax = read(*(p + 1), *(p + 2), *(p + 3));
+    file_lock_release();
     break;
   case SYS_WRITE:
     address_checking(p + 1);
     address_checking(p + 3);
+    file_lock_acquire();
     f->eax = write(*(p + 1), *(p + 2), *(p + 3));
+    file_lock_release();
     break;
   case SYS_SEEK:
     address_checking(p + 1);
@@ -262,4 +271,12 @@ void thread_close(int status){
       close(i);
     }
   }
+}
+
+void file_lock_acquire(void){
+  lock_acquire(&file_lock);
+}
+
+void file_lock_release(void){
+  lock_release(&file_lock);
 }
