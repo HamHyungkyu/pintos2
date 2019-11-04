@@ -185,7 +185,7 @@ int open(const char * file){
 
   struct file * fp = filesys_open(file);
   if(fp){
-    for(int i = 3; i < 128; i++){
+    for(int i = 3; i < 131; i++){
       struct file* file_in_fd = thread_current()->fd[i];
       if(file_in_fd == NULL){
         thread_current()->fd[i] = fp;
@@ -254,8 +254,8 @@ unsigned tell(int fd){
 void close(int fd) {
   if(thread_current()->fd[fd] != NULL){
     file_allow_write(thread_current()->fd[fd]);
+    file_close(thread_current()->fd[fd]);
     thread_current()->fd[fd] = NULL;
-    return file_close(thread_current()->fd[fd]);
   }
   else{
     exit(-1);
@@ -271,7 +271,7 @@ void file_checking(const char * file){
 
 void thread_close(int status){
   thread_current()->exit_value = status;
-  for(int i = 3; i < 128; i++){
+  for(int i = 3; i < 131; i++){
     if(thread_current()->fd[i] != NULL){
       close(i);
     }
