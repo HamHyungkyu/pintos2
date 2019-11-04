@@ -97,12 +97,17 @@ tid_t process_execute(const char *file_name)
   char *fn = file_name_parsing(filname_copy);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create(fn, PRI_DEFAULT, start_process, fn_copy);
-
-  sema_down(&thread_current()->sema_load);
+  struct thread *child = thread_get_child(tid);
+  sema_down(&child->sema_load);
 
   if (tid == TID_ERROR)
     palloc_free_page(fn_copy);
   palloc_free_page(filname_copy);
+
+  if(child->exit_value == -1){
+    return -1;
+  }
+
   return tid;
 }
 
@@ -143,7 +148,7 @@ start_process(void *file_name_)
     argcT++;
   }
   success = load(file_name_, &if_.eip, &if_.esp);
-  sema_up(&thread_current()->parent->sema_load);
+  sema_up(&thread_current()->sema_load);
   push_argument(&if_.esp, argc, argv);
   free(argv);
   /* If load failed, quit. */
@@ -183,12 +188,7 @@ int process_wait(tid_t child_tid UNUSED)
   {
     return -1;
   }
-  if(child->exit_value == -1){
-    sema_up(&child->sema_exit_scheduler);
-    sema_down(&child->sema_scheduler);
-    sema_down(&child->sema_scheduler);
-    return -1;
-  }
+
   sema_down(&child->sema_scheduler);
   int exit_value = child->exit_value;
   sema_up(&child->sema_exit_scheduler);
@@ -196,8 +196,6 @@ int process_wait(tid_t child_tid UNUSED)
   
   return exit_value;
 }
-
-
 
 
 /* Free the current process's resources. */
