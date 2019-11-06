@@ -105,6 +105,7 @@ tid_t process_execute(const char *file_name)
   palloc_free_page(filname_copy);
 
   if(child->exit_value == -1){
+    sema_up(&child->sema_exit_scheduler);
     return -1;
   }
 
