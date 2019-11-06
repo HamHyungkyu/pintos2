@@ -190,7 +190,7 @@ int open(const char * file){
       if(file_in_fd == NULL){
         thread_current()->fd[i] = fp;
         return i;
-      } 
+      }
       else if(inode_get_inumber(file_get_inode(file_in_fd)) == inode_get_inumber(file_get_inode(fp))){
         file_close(fp);
         fp = file_reopen(file_in_fd);
@@ -244,11 +244,21 @@ int write(int fd, const void *buffer, unsigned size)
 }
 
 void seek(int fd, unsigned position) {
-  file_seek(thread_current()->fd[fd], position);
+  if(thread_current()->fd[fd] != NULL){
+    file_seek(thread_current()->fd[fd], position);
+  }
+  else{
+    exit(-1);
+  }
 }
 
 unsigned tell(int fd){
-  return file_tell(thread_current()->fd[fd]);
+  if(thread_current()->fd[fd] != NULL){
+    return file_tell(thread_current()->fd[fd]);
+  }
+  else{
+    exit(-1);
+  }
 }
 
 void close(int fd) {
