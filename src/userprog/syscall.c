@@ -122,6 +122,7 @@ void address_checking(int *p)
 {
   if (!is_user_vaddr(p))
   {
+    printf("exit addr checking");
     exit(-1);
   }
 }
@@ -154,6 +155,7 @@ pid_t exec(const char *cmd_line)
   struct file * fp = filesys_open(file);
   free(cmd_line_cp);
   if(fp){
+    file_close(fp);
     return process_execute(cmd_line);
   }
   else{
@@ -185,12 +187,12 @@ int open(const char * file){
 
   struct file * fp = filesys_open(file);
   if(fp){
-    for(int i = 3; i < 131; i++){
+    for(int i = 3; i < 128; i++){
       struct file* file_in_fd = thread_current()->fd[i];
       if(file_in_fd == NULL){
         thread_current()->fd[i] = fp;
         return i;
-      }
+      } 
       else if(inode_get_inumber(file_get_inode(file_in_fd)) == inode_get_inumber(file_get_inode(fp))){
         file_close(fp);
         fp = file_reopen(file_in_fd);
@@ -244,30 +246,22 @@ int write(int fd, const void *buffer, unsigned size)
 }
 
 void seek(int fd, unsigned position) {
-  if(thread_current()->fd[fd] != NULL){
-    file_seek(thread_current()->fd[fd], position);
-  }
-  else{
-    exit(-1);
-  }
+  file_seek(thread_current()->fd[fd], position);
 }
 
 unsigned tell(int fd){
-  if(thread_current()->fd[fd] != NULL){
-    return file_tell(thread_current()->fd[fd]);
-  }
-  else{
-    exit(-1);
-  }
+  return file_tell(thread_current()->fd[fd]);
 }
 
 void close(int fd) {
   if(thread_current()->fd[fd] != NULL){
-    file_allow_write(thread_current()->fd[fd]);
-    file_close(thread_current()->fd[fd]);
+    struct file * close_file = thread_current()->fd[fd];
+    file_allow_write(close_file);
     thread_current()->fd[fd] = NULL;
+    return file_close(close_file);
   }
   else{
+    // printf("exit close");
     exit(-1);
   }
 }
@@ -275,6 +269,7 @@ void close(int fd) {
 //
 void file_checking(const char * file){
   if(file == NULL){
+    // printf("exit file checking");
     exit(-1);
   }
 }

@@ -2,6 +2,7 @@
 #include "vm/frame.h"
 
 static struct list frame_table;
+static bool frame_less(struct list_elem *a, struct list_elem *b, void *aux);
 
 void frame_init(){
     list_init(&frame_table);
@@ -21,6 +22,7 @@ void frame_deallocate(void * user_adder){
         entry_a = list_entry(a, struct frame_entry, elem);
         if(entry_a->user_addr == user_adder){
             list_remove(a);
+            free(entry_a);
             break;
         }
     }
@@ -30,6 +32,7 @@ void frame_destory(){
     struct list_elem *a;
     for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
         list_remove(a);
+        free(entry_a);
     }
 }
 

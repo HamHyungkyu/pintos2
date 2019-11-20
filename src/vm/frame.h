@@ -3,7 +3,6 @@
 
 #include <debug.h>
 #include <list.h>
-#include <sdtint.h>
 #include "threads/thread.h"
 
 
@@ -12,3 +11,8 @@ struct frame_entry {
     struct list_elem elem;
     void* user_addr;
 };
+
+void frame_allocate(void * user_addr);
+void frame_deallocate(void * user_adder);
+
+#endif
