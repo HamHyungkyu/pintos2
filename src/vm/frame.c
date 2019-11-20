@@ -15,10 +15,22 @@ void frame_allocate(void * user_addr){
 }
 
 void frame_deallocate(void * user_adder){
+    struct list_elem *a;
+    struct frame_entry *entry_a;
+    for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
+        entry_a = list_entry(a, struct frame_entry, elem);
+        if(entry_a->user_addr == user_adder){
+            list_remove(a);
+            break;
+        }
+    }
 }
 
 void frame_destory(){
-
+    struct list_elem *a;
+    for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
+        list_remove(a);
+    }
 }
 
 static bool frame_less(struct list_elem *a, struct list_elem *b, void *aux){
