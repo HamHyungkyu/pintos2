@@ -30,7 +30,10 @@ void frame_deallocate(void * user_adder){
 
 void frame_destory(){
     struct list_elem *a;
+    struct frame_entry *entry_a;
+
     for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
+        entry_a = list_entry(a, struct frame_entry, elem);
         list_remove(a);
         free(entry_a);
     }
