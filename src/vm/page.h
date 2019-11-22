@@ -14,12 +14,13 @@ struct stable_entry {
     size_t read_bytes; // To read bytes
     size_t zero_bytes; // size of extra 0 
     struct hash_elem elem; // hash table element
+    bool writable;
     mapid_t mapid; // mmap id
     size_t swap_index; // swap index
 };
 
-void* stable_alloc(void* addr, struct file* file, size_t offset, size_t read_bytes, mapid_t mapid);
+void* stable_alloc(void* addr, struct file* file, size_t offset, size_t read_bytes, bool writable, mapid_t mapid);
 void stable_init(struct hash *table);
-
+bool stable_frame_alloc(void* addr);
 
 #endif
