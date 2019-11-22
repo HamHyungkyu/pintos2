@@ -11,7 +11,7 @@ struct frame_entry {
     struct list_elem elem;
     void* user_addr;
 };
-
+void frame_init();
 void frame_allocate(void * user_addr);
 void frame_deallocate(void * user_adder);
 

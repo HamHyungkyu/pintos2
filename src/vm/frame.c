@@ -12,7 +12,13 @@ void frame_allocate(void * user_addr){
     struct frame_entry *frame = malloc(sizeof(struct frame_entry));
     frame->thread = thread_current();
     frame->user_addr = user_addr;
-    list_insert_ordered(&frame_table, &frame->elem, &frame_less, NULL);
+    struct frame_entry *entry_a = list_entry(&frame->elem, struct frame_entry, elem);
+    if(list_size(&frame_table)){
+        list_push_back(&frame_table, &frame->elem);
+    }
+    else{
+        list_insert_ordered(&frame_table, &frame->elem, &frame_less, NULL);
+    }
 }
 
 void frame_deallocate(void * user_adder){

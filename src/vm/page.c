@@ -12,7 +12,8 @@ void stable_init(struct hash *table){
 
 void* stable_alloc(void* addr, struct file* file, size_t offset, size_t read_bytes, bool writable, mapid_t mapid){
     struct stable_entry *entry = malloc(sizeof(struct stable_entry));
-    entry->vaddr = addr;
+    entry->vaddr = pg_round_down(addr);
+    entry->offset = addr - entry->vaddr;
     entry->file = file_reopen(file);
     file_seek(entry->file, offset);
     entry->read_bytes = read_bytes;
@@ -21,7 +22,6 @@ void* stable_alloc(void* addr, struct file* file, size_t offset, size_t read_byt
     entry->writable = writable; 
     entry->mapid = mapid;
     hash_insert(&thread_current()->stable, &entry->elem);
-    printf("insert entry: %d\n", entry->vaddr);
     return addr + PGSIZE;
 }
 
@@ -32,24 +32,19 @@ bool stable_frame_alloc(void* addr){
     struct thread *t = thread_current();
     
     if(entry == NULL){
-        printf("null entry\n");
          return false;
     }
 
     uint8_t *kpage = palloc_get_page(PAL_USER);
     if(kpage == NULL){
-        printf("kpage null");
         return false;
     }
     if(file_read(entry->file, kpage, entry->read_bytes) != (int) entry->read_bytes){
-        printf("read fail");
         palloc_free_page(kpage);
         return false;
     }
     memset(kpage + entry->read_bytes, 0, entry->zero_bytes);
-    
-    if(!pagedir_set_page(t->pagedir, addr, kpage, entry->writable)){
-        printf("page set fail?");
+    if(!pagedir_set_page(t->pagedir, pg_round_down(addr), kpage, entry->writable)){
         palloc_free_page(kpage);
         return false;
     }
@@ -64,11 +59,9 @@ struct stable_entry* stable_find_entry(void* addr){
     hash_first(&i, table);
     struct hash_elem *elem;
     struct stable_entry *entry;
-    printf("hash size: %d \n", hash_size(table));
     for(elem = hash_next(&i);  elem != NULL; elem = hash_next(&i))
     {
         entry = hash_entry(elem, struct stable_entry, elem); 
-        printf("entry->vaddr: %d : addr %d\n", entry->vaddr, addr);
         if(entry->vaddr <= addr && entry->vaddr + PGSIZE > addr){
             return entry;
         }

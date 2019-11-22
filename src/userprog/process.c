@@ -17,7 +17,9 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-
+#ifdef VM
+#include "vm/page.h"
+#endif
 static thread_func start_process NO_RETURN;
 static bool load(const char *cmdline, void (**eip)(void), void **esp);
 
@@ -81,6 +83,7 @@ void push_argument(void **esp, int argc, char **argv)
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t process_execute(const char *file_name)
 {
+
   char *fn_copy;
   char *filname_copy;
   tid_t tid;
@@ -148,6 +151,9 @@ start_process(void *file_name_)
     argv[argcT] = parse;
     argcT++;
   }
+  #ifdef VM
+  stable_init(&thread_current()->stable);
+  #endif
   success = load(file_name_, &if_.eip, &if_.esp);
   sema_up(&thread_current()->sema_load);
   push_argument(&if_.esp, argc, argv);
@@ -313,6 +319,7 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
    Returns true if successful, false otherwise. */
 bool load(const char *file_name, void (**eip)(void), void **esp)
 {
+
   struct thread *t = thread_current();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -345,6 +352,7 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
 
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
+
   for (i = 0; i < ehdr.e_phnum; i++)
   {
     struct Elf32_Phdr phdr;
@@ -486,7 +494,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
   ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT(pg_ofs(upage) == 0);
   ASSERT(ofs % PGSIZE == 0);
-
+  off_t offset = ofs;
   file_seek(file, ofs);
   while (read_bytes > 0 || zero_bytes > 0)
   {
@@ -495,8 +503,10 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
          and zero the final PAGE_ZERO_BYTES bytes. */
     size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-    /* Get a page of memory. */
+    #ifdef VM
+    stable_alloc(upage, file, offset ,page_read_bytes, writable, NULL);
+    #else
+        /* Get a page of memory. */
     uint8_t *kpage = palloc_get_page(PAL_USER);
     if (kpage == NULL)
       return false;
@@ -515,6 +525,9 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
       palloc_free_page(kpage);
       return false;
     }
+    #endif
+
+    offset += page_read_bytes;
 
     /* Advance. */
     read_bytes -= page_read_bytes;

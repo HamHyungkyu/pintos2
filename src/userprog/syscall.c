@@ -153,7 +153,7 @@ pid_t exec(const char *cmd_line)
   char * file = strtok_r(cmd_line_cp, " ", &ptr);
 
   struct file * fp = filesys_open(file);
-  free(cmd_line_cp);
+  free(cmd_line_cp); 
   if(fp){
     file_close(fp);
     return process_execute(cmd_line);
