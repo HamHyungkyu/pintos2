@@ -480,6 +480,9 @@ init_thread(struct thread *t, const char *name, int priority)
   sema_init(&t->sema_scheduler, 0);
   sema_init(&t->sema_exit_scheduler, 0);
   sema_init(&t->sema_load, 0);
+  #ifdef USERPROG
+  stable_init(&t->stable);
+  #endif
   intr_set_level(old_level);
 
   for(int i = 0; i < 131; i++){

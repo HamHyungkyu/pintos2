@@ -19,7 +19,7 @@ struct stable_entry {
 };
 
 void* stable_alloc(void* addr, struct file* file, size_t offset, size_t read_bytes, mapid_t mapid);
-bool stable_less(struct hash_elem *a, struct hash_elem *b);
+void stable_init(struct hash *table);
 
 
 #endif
