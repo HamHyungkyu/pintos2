@@ -27,7 +27,6 @@ bool stable_stack_alloc(void *addr){
     struct stable_entry *entry;
     uint8_t *kpage;
     bool success = false;
-
     if(PHYS_BASE - 2048 * PGSIZE <= addr && addr < PHYS_BASE){
         for(sp = PHYS_BASE - PGSIZE; sp >= pg_round_down(addr); sp -= PGSIZE){
             entry = stable_find_entry(sp);
