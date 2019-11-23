@@ -22,6 +22,7 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
+#include "vm/swap.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -127,6 +128,7 @@ main (void)
   filesys_init (format_filesys);
 #endif
 
+  swap_init();
   printf ("Boot complete.\n");
   
   /* Run actions specified on kernel command line. */
