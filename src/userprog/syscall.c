@@ -122,7 +122,6 @@ void address_checking(int *p)
 {
   if (!is_user_vaddr(p))
   {
-    printf("exit addr checking");
     exit(-1);
   }
 }

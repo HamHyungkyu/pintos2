@@ -32,20 +32,25 @@ bool stable_frame_alloc(void* addr){
     struct thread *t = thread_current();
     
     if(entry == NULL){
+        // printf("entry null");
          return false;
     }
 
     uint8_t *kpage = palloc_get_page(PAL_USER);
     if(kpage == NULL){
+        // printf("kpage null");
         return false;
     }
     if(file_read(entry->file, kpage, entry->read_bytes) != (int) entry->read_bytes){
         palloc_free_page(kpage);
+        // printf("read fail");
         return false;
     }
     memset(kpage + entry->read_bytes, 0, entry->zero_bytes);
     if(!pagedir_set_page(t->pagedir, pg_round_down(addr), kpage, entry->writable)){
         palloc_free_page(kpage);
+        // printf("set fail\n");
+
         return false;
     }
     return true;    
@@ -65,7 +70,7 @@ struct stable_entry* stable_find_entry(void* addr){
         if(entry->vaddr <= addr && entry->vaddr + PGSIZE > addr){
             return entry;
         }
-    }
+    } 
     return NULL;
 }
 

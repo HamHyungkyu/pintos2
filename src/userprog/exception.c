@@ -156,7 +156,7 @@ page_fault (struct intr_frame *f)
   }
   if((not_present)){
      #ifdef VM
-     if(user && stable_frame_alloc(fault_addr)){
+     if(stable_frame_alloc(fault_addr)){
         return;
      }
      #endif
