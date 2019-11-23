@@ -5,12 +5,69 @@
 bool stable_less(struct hash_elem *a, struct hash_elem *b, void *aux);
 size_t stable_hash_hash(struct hash_elem *a, void *aux);
 struct stable_entry* stable_find_entry(void* addr);
+struct stable_entry* stable_stack_element(void* addr);
 
 void stable_init(struct hash *table){
     hash_init(table, &stable_hash_hash, &stable_less, NULL);
 }
 
-void* stable_alloc(void* addr, struct file* file, size_t offset, size_t read_bytes, bool writable, mapid_t mapid){
+static bool
+install_page(void *upage, void *kpage, bool writable)
+{
+  struct thread *t = thread_current();
+
+  /* Verify that there's not already a page at that virtual
+     address, then map our page there. */
+  return (pagedir_get_page(t->pagedir, upage) == NULL && pagedir_set_page(t->pagedir, upage, kpage, writable));
+}
+
+
+bool stable_stack_alloc(void *addr){
+    void *sp;
+    struct stable_entry *entry;
+    uint8_t *kpage;
+    bool success = false;
+
+    if(PHYS_BASE - 2048 * PGSIZE <= addr && addr < PHYS_BASE){
+        for(sp = PHYS_BASE - PGSIZE; sp >= pg_round_down(addr); sp -= PGSIZE){
+            entry = stable_find_entry(sp);
+            if(entry != NULL){
+                continue;
+            }
+            entry = stable_stack_element(sp);
+            kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+            if (kpage != NULL)
+            {
+                success = install_page(sp, kpage, true);
+                if(!success)
+                {
+                    palloc_free_page(kpage);
+                    return false;
+                }
+            }
+        }
+        return success;
+    }
+    else{
+        return false;
+    }
+}
+
+struct stable_entry* stable_stack_element(void* addr){
+    struct stable_entry *entry = malloc(sizeof(struct stable_entry));
+    entry->vaddr = pg_round_down(addr);
+    entry->offset = addr - entry->vaddr;
+    entry->file = NULL;
+    entry->read_bytes = PGSIZE;
+    entry->is_loaded = true;
+    entry->zero_bytes = 0;
+    entry->writable = true;
+    entry->mapid = NULL;
+    hash_insert(&thread_current()->stable, &entry->elem);
+    return entry;
+}
+
+struct stable_entry* stable_alloc(void* addr, struct file* file, size_t offset, size_t read_bytes, bool writable, mapid_t mapid){
     struct stable_entry *entry = malloc(sizeof(struct stable_entry));
     entry->vaddr = pg_round_down(addr);
     entry->offset = addr - entry->vaddr;
@@ -22,7 +79,7 @@ void* stable_alloc(void* addr, struct file* file, size_t offset, size_t read_byt
     entry->writable = writable; 
     entry->mapid = mapid;
     hash_insert(&thread_current()->stable, &entry->elem);
-    return addr + PGSIZE;
+    return entry;
 }
 
 /* When Page fault exceptin, check valid address and allocate frame.
@@ -50,9 +107,9 @@ bool stable_frame_alloc(void* addr){
     if(!pagedir_set_page(t->pagedir, pg_round_down(addr), kpage, entry->writable)){
         palloc_free_page(kpage);
         // printf("set fail\n");
-
         return false;
     }
+    entry->is_loaded = true;
     return true;    
 }
 
