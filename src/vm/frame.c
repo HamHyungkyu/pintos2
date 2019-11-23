@@ -45,6 +45,21 @@ void frame_destory(){
     }
 }
 
+struct frame_entry * get_frame_eviction(){
+    struct list_elem *a;
+    struct frame_entry *entry_a;
+
+    for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
+        entry_a = list_entry(a, struct frame_entry, elem);
+        if(entry_a->used){
+            entry_a = false;
+        }
+        else{
+            return entry_a;
+        }
+    }
+}
+
 static bool frame_less(struct list_elem *a, struct list_elem *b, void *aux){
     struct frame_entry *entry_a = list_entry(a, struct frame_entry, elem);
     struct frame_entry *entry_b = list_entry(b, struct frame_entry, elem);
