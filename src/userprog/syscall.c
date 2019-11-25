@@ -12,6 +12,12 @@
 #include "userprog/process.h"
 #include "devices/input.h"
 #include "threads/malloc.h"
+#include "vm/frame.h"
+#include "vm/page.h"
+
+
+static int mapid;
+static struct lock mapid_lock;
 
 static void syscall_handler(struct intr_frame *);
 void address_checking(int * p);
@@ -25,11 +31,15 @@ bool create(const char * file, unsigned initial_size);
 bool remove(const char * file);
 int open(const char * file);
 int filesize(int fd);
-int read(int fd, uint8_t * buffer, unsigned size);
+int read(int fd, void * buffer, unsigned size);
 int write(int fd, const void *buffer, unsigned size);
 void seek(int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
+
+
+mapid_t mmap (int fd, void *addr);
+void munmap (mapid_t mapping);
 
 void file_checking(const char * file);
 void thread_close(int status);
@@ -41,6 +51,8 @@ void file_lock_release(void);
 void syscall_init(void)
 {
   lock_init(&file_lock);
+  lock_init(&mapid_lock);
+  mapid = 0;
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -115,6 +127,14 @@ syscall_handler(struct intr_frame *f UNUSED)
     address_checking(p + 1);
     close(*(p + 1));
     break;
+  case SYS_MMAP: 
+    address_checking(p + 1);
+    address_checking(p + 2);
+    mmap(*(p + 1), *(p + 2));
+    break;
+  case SYS_MUNMAP: 
+    address_checking(p + 1);
+    munmap(*(p + 1));
   }
 }
 
@@ -207,8 +227,10 @@ int filesize(int fd) {
   return file_length(thread_current()->fd[fd]);
 }
 
-int read(int fd, uint8_t * buffer, unsigned size){
+int read(int fd, void * b, unsigned size){
+  uint8_t *buffer = b;
   address_checking(buffer);
+  
   if(fd == 0){
     for(int i = 0; i < size; i++){
       buffer[i] = input_getc();
@@ -263,6 +285,35 @@ void close(int fd) {
     // printf("exit close");
     exit(-1);
   }
+}
+
+mapid_t mmap(int fd, void* addr){
+  struct thread *t = thread_current();
+  struct file * file = file_reopen(t->fd[fd]);
+  void ** upage = addr;
+  off_t offset = 0;
+  uint32_t read_bytes = file_length(file);
+  uint32_t zero_bytes = PGSIZE - (read_bytes % PGSIZE);
+  lock_acquire(&mapid_lock);
+  while(read_bytes > 0 || zero_bytes > 0){
+    size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+    size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+    stable_alloc(upage, file, offset, page_read_bytes, true, mapid);
+    offset += page_read_bytes;
+    read_bytes -= page_read_bytes;
+    zero_bytes -= page_zero_bytes;
+    upage += PGSIZE;
+
+  }
+  
+  lock_release(&mapid_lock);
+  file_close(file);
+  return mapid ++;
+}
+
+void munmap(mapid_t mapping){
+  stable_munmap(mapping);
 }
 
 //

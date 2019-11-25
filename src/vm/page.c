@@ -1,4 +1,5 @@
 #include "vm/page.h"
+#include "vm/frame.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "userprog/process.h"
@@ -109,6 +110,7 @@ bool stable_frame_alloc(void* addr){
         return false;
     }
     entry->is_loaded = true;
+    frame_allocate(pg_round_down(addr));
     return true;    
 }
 
@@ -130,6 +132,29 @@ struct stable_entry* stable_find_entry(void* addr){
     return NULL;
 }
 
+void stable_munmap(mapid_t mapping){
+    struct hash *table = &thread_current()->stable;
+    struct hash_iterator *i;
+    hash_first(&i, table);
+    struct hash_elem *elem;
+    struct stable_entry *entry;
+    for(elem = hash_next(&i);  elem != NULL; elem = hash_next(&i))
+    {
+        entry = hash_entry(elem, struct stable_entry, elem); 
+        if(entry->mapid == mapping){
+            stable_free(entry->vaddr);
+        }
+    } 
+}
+
+void stable_free(void *addr){
+    struct stable_entry *entry = stable_find_entry(addr);
+    if(entry-> is_loaded){
+        pagedir_clear_page(thread_current()->pagedir, pg_round_down(addr));
+        frame_deallocate(pg_round_down(addr));
+    }
+    hash_delete(&thread_current()->stable, entry);
+}
 
 bool stable_less(struct hash_elem *a, struct hash_elem *b, void *aux){
     struct stable_entry * entry_a = hash_entry(a, struct stable_entry, elem); 

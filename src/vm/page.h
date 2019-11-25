@@ -23,5 +23,7 @@ bool stable_stack_alloc(void *addr);
 struct stable_entry* stable_alloc(void* addr, struct file* file, size_t offset, size_t read_bytes, bool writable, mapid_t mapid);
 void stable_init(struct hash *table);
 bool stable_frame_alloc(void* addr);
+void stable_free(void *addr);
+void stable_munmap(mapid_t mapping);
 
 #endif
