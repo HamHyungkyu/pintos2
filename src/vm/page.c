@@ -62,7 +62,7 @@ struct stable_entry* stable_stack_element(void* addr){
     entry->is_loaded = true;
     entry->zero_bytes = 0;
     entry->writable = true;
-    entry->mapid = NULL;
+    entry->mapid = -1;
     hash_insert(&thread_current()->stable, &entry->elem);
     return entry;
 }
@@ -138,22 +138,27 @@ void stable_munmap(mapid_t mapping){
     hash_first(&i, table);
     struct hash_elem *elem;
     struct stable_entry *entry;
+    
     for(elem = hash_next(&i);  elem != NULL; elem = hash_next(&i))
     {
-        entry = hash_entry(elem, struct stable_entry, elem); 
+
+        entry = hash_entry(elem, struct stable_entry, elem);
         if(entry->mapid == mapping){
-            stable_free(entry->vaddr);
+            stable_free(entry);
         }
     } 
 }
 
-void stable_free(void *addr){
-    struct stable_entry *entry = stable_find_entry(addr);
+void stable_free(struct stable_entry *entry){
+    void * addr = pg_round_down(entry->vaddr);
     if(entry-> is_loaded){
-        pagedir_clear_page(thread_current()->pagedir, pg_round_down(addr));
-        frame_deallocate(pg_round_down(addr));
+        if(pagedir_is_dirty(thread_current()->pagedir, addr)){
+            file_write_at(entry->file, addr, entry->read_bytes, entry->offset);
+        }
+        pagedir_clear_page(thread_current()->pagedir, addr);
+        frame_deallocate(addr);
     }
-    hash_delete(&thread_current()->stable, entry);
+    struct hash_elem * elem = hash_delete(&thread_current()->stable, &entry->elem);
 }
 
 bool stable_less(struct hash_elem *a, struct hash_elem *b, void *aux){
