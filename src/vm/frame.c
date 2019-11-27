@@ -1,4 +1,10 @@
+#include "threads/thread.h"
+#include "threads/palloc.h"
+#include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "userprog/pagedir.h"
+#include "vm/swap.h"
+#include "vm/page.h"
 #include "vm/frame.h"
 
 static struct list frame_table;
@@ -12,6 +18,8 @@ void frame_allocate(void * user_addr){
     struct frame_entry *frame = malloc(sizeof(struct frame_entry));
     frame->thread = thread_current();
     frame->user_addr = user_addr;
+    frame->page = NULL;
+    frame->used = true;
     struct frame_entry *entry_a = list_entry(&frame->elem, struct frame_entry, elem);
     if(list_size(&frame_table)){
         list_push_back(&frame_table, &frame->elem);
@@ -45,18 +53,59 @@ void frame_destory(){
     }
 }
 
+void * frame_kpage(){
+    struct frame_entry * frame_eviction = get_frame_eviction();
+    struct thread * t = frame_eviction->thread;
+
+    /*
+    if(pagedir_is_dirty(t->pagedir, frame_eviction->user_addr)){
+    }
+    */
+    
+    struct stable_entry* entry = stable_find_entry(t, frame_eviction->user_addr);
+    entry->swap_index = swap_out(frame_eviction->page);
+    entry->is_loaded = false;
+    pagedir_clear_page(t->pagedir, frame_eviction->user_addr);
+    palloc_free_page(frame_eviction->page);
+    free(frame_eviction);
+
+    return palloc_get_page(PAL_USER);
+}
+
 struct frame_entry * get_frame_eviction(){
+    uint32_t * pagedir = thread_current()->pagedir;
     struct list_elem *a;
     struct frame_entry *entry_a;
 
     for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
         entry_a = list_entry(a, struct frame_entry, elem);
-        if(entry_a->used){
-            entry_a = false;
+        if(!entry_a->used){
+            //Second Chance
+            if(pagedir_is_accessed(pagedir, entry_a->user_addr)){
+                pagedir_set_accessed(pagedir, entry_a->user_addr, false);
+                continue;
+            }
         }
         else{
-            return entry_a;
+            continue;
         }
+
+        return entry_a;
+    }
+
+    for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
+        entry_a = list_entry(a, struct frame_entry, elem);
+        if(!entry_a->used){
+            if(pagedir_is_accessed(pagedir, entry_a->user_addr)){
+                pagedir_set_accessed(pagedir, entry_a->user_addr, false);
+                continue;
+            }
+        }
+        else{
+            continue;
+        }
+
+        return entry_a;
     }
 }
 
