@@ -29,8 +29,7 @@ bool stable_stack_alloc(void *addr){
     if(PHYS_BASE - 2048 * PGSIZE <= addr && addr < PHYS_BASE){
         for(sp = PHYS_BASE - PGSIZE; sp >= pg_round_down(addr); sp -= PGSIZE){
             struct thread *t = thread_current();
-            entry = stable_find_entry(t, sp);
-            if(entry != NULL){
+            if(stable_is_exist(t, sp)){
                 continue;
             }
             entry = stable_stack_element(sp);
@@ -116,18 +115,12 @@ bool stable_frame_alloc(void* addr){
 /*  Find stable entry by user address. If invalid, return NULL
 */
 struct stable_entry* stable_find_entry(struct thread *t, void* addr){
-    struct hash *table = &t->stable;
-    struct hash_iterator *i;
-    hash_first(&i, table);
-    struct hash_elem *elem;
-    struct stable_entry *entry;
-    for(elem = hash_next(&i);  elem != NULL; elem = hash_next(&i))
-    {
-        entry = hash_entry(elem, struct stable_entry, elem); 
-        if(entry->vaddr <= addr && entry->vaddr + PGSIZE > addr){
-            return entry;
-        }
-    } 
+    struct stable_entry entry;
+    entry.vaddr = pg_round_down(addr);
+    struct hash_elem *elem = hash_find(&t->stable, &entry.elem);
+    if(elem != NULL){
+        return hash_entry(elem, struct stable_entry, elem);
+    }
     return NULL;
 }
 
