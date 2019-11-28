@@ -152,21 +152,23 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   if((user && is_kernel_vaddr(fault_addr)) ){
+   //   printf("kenel \n");
      exit(-1);
   }
   if((not_present)){
      #ifdef VM
      if((user && write && stable_stack_alloc(fault_addr)) ||stable_frame_alloc(fault_addr)){
+            //   printf("user %d write %d addr %x\n", user, write, fault_addr);
+
         return;
      }
-      // printf("user %d write %d addr %x\n", user, write, fault_addr);
 
      #endif
    //   printf("user %d write %d addr %x\n", user, write, fault_addr);
      exit(-1);
   }
   if(!not_present  && write){
-     // try to write existing code data
+   //   printf("trying to write existing code data %x\n", fault_addr);
      exit(-1);
   }
 

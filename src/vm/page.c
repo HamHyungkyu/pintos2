@@ -1,11 +1,9 @@
 #include "vm/page.h"
 #include "vm/frame.h"
 #include "threads/palloc.h"
-#include "threads/thread.h"
 #include "userprog/process.h"
 bool stable_less(struct hash_elem *a, struct hash_elem *b, void *aux);
 size_t stable_hash_hash(struct hash_elem *a, void *aux);
-struct stable_entry* stable_find_entry(struct thread * t, void* addr);
 struct stable_entry* stable_stack_element(void* addr);
 
 void stable_init(struct hash *table){
@@ -133,6 +131,15 @@ struct stable_entry* stable_find_entry(struct thread *t, void* addr){
     return NULL;
 }
 
+bool stable_is_exist(struct thread* t, void *addr){
+    struct stable_entry entry;
+    entry.vaddr = addr;
+    if( hash_find(&t->stable, &entry.elem) != NULL){
+        return true;
+    }
+    return false;
+}
+
 void stable_munmap(mapid_t mapping){
     struct hash *table = &thread_current()->stable;
     struct hash_iterator *i;
@@ -162,10 +169,8 @@ void stable_free(struct stable_entry *entry){
     struct hash_elem * elem = hash_delete(&thread_current()->stable, &entry->elem);
 }
 
-bool stable_less(struct hash_elem *a, struct hash_elem *b, void *aux){
-    struct stable_entry * entry_a = hash_entry(a, struct stable_entry, elem); 
-    struct stable_entry * entry_b = hash_entry(b, struct stable_entry, elem);   
-    return entry_a->vaddr < entry_b->vaddr; 
+bool stable_less(struct hash_elem *a, struct hash_elem *b, void *aux){ 
+    return stable_hash_hash(a, aux) <stable_hash_hash(b, aux); 
 }
 
 size_t stable_hash_hash(struct hash_elem *a, void *aux){

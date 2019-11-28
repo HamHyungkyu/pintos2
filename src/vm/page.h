@@ -4,6 +4,7 @@
 #include "lib/user/syscall.h"
 #include <syscall-nr.h>
 #include "threads/vaddr.h"
+#include "threads/thread.h"
 #include "filesys/file.h"
 
 struct stable_entry {
@@ -24,6 +25,8 @@ struct stable_entry* stable_alloc(void* addr, struct file* file, size_t offset, 
 void stable_init(struct hash *table);
 bool stable_frame_alloc(void* addr);
 void stable_free(struct stable_entry *entry);
+struct stable_entry* stable_find_entry(struct thread *t, void* addr);
+bool stable_is_exist(struct thread* t, void *addr);
 void stable_munmap(mapid_t mapping);
 
 #endif
