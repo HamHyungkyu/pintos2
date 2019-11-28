@@ -103,10 +103,10 @@ struct thread
   struct semaphore sema_exit_scheduler;
   struct semaphore sema_load;
   struct file* fd[131];
+  struct hash stable;
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
   uint32_t *pagedir; /* Page directory. */
-  struct hash stable;
 #endif
 
   /* Owned by thread.c. */

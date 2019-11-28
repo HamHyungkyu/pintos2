@@ -5,7 +5,7 @@
 #include "userprog/process.h"
 bool stable_less(struct hash_elem *a, struct hash_elem *b, void *aux);
 size_t stable_hash_hash(struct hash_elem *a, void *aux);
-struct stable_entry* stable_find_entry(void* addr);
+struct stable_entry* stable_find_entry(struct thread * t, void* addr);
 struct stable_entry* stable_stack_element(void* addr);
 
 void stable_init(struct hash *table){
@@ -30,7 +30,8 @@ bool stable_stack_alloc(void *addr){
     bool success = false;
     if(PHYS_BASE - 2048 * PGSIZE <= addr && addr < PHYS_BASE){
         for(sp = PHYS_BASE - PGSIZE; sp >= pg_round_down(addr); sp -= PGSIZE){
-            entry = stable_find_entry(sp);
+            struct thread *t = thread_current();
+            entry = stable_find_entry(t, sp);
             if(entry != NULL){
                 continue;
             }
@@ -85,8 +86,8 @@ struct stable_entry* stable_alloc(void* addr, struct file* file, size_t offset, 
 /* When Page fault exceptin, check valid address and allocate frame.
  */
 bool stable_frame_alloc(void* addr){
-    struct stable_entry *entry = stable_find_entry(addr);
     struct thread *t = thread_current();
+    struct stable_entry *entry = stable_find_entry(t, addr);
     
     if(entry == NULL){
         // printf("entry null");
@@ -96,7 +97,7 @@ bool stable_frame_alloc(void* addr){
     uint8_t *kpage = palloc_get_page(PAL_USER);
     if(kpage == NULL){
         // printf("kpage null");
-        return false;
+        kpage = frame_kpage();
     }
     if(file_read(entry->file, kpage, entry->read_bytes) != (int) entry->read_bytes){
         palloc_free_page(kpage);
@@ -116,8 +117,8 @@ bool stable_frame_alloc(void* addr){
 
 /*  Find stable entry by user address. If invalid, return NULL
 */
-struct stable_entry* stable_find_entry(void* addr){
-    struct hash *table = &thread_current()->stable;
+struct stable_entry* stable_find_entry(struct thread *t, void* addr){
+    struct hash *table = &t->stable;
     struct hash_iterator *i;
     hash_first(&i, table);
     struct hash_elem *elem;

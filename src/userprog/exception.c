@@ -162,6 +162,7 @@ page_fault (struct intr_frame *f)
       // printf("user %d write %d addr %x\n", user, write, fault_addr);
 
      #endif
+   //   printf("user %d write %d addr %x\n", user, write, fault_addr);
      exit(-1);
   }
   /* To implement virtual memory, delete the rest of the function
