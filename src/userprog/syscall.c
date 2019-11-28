@@ -130,7 +130,7 @@ syscall_handler(struct intr_frame *f UNUSED)
   case SYS_MMAP: 
     address_checking(p + 1);
     address_checking(p + 2);
-    mmap(*(p + 1), *(p + 2));
+    f->eax = mmap(*(p + 1), *(p + 2));
     break;
   case SYS_MUNMAP: 
     address_checking(p + 1);
@@ -288,28 +288,28 @@ void close(int fd) {
 }
 
 mapid_t mmap(int fd, void* addr){
+  mapid_t mapping = mapid;
+  lock_acquire(&mapid_lock);
+  mapid++;
+  lock_release(&mapid_lock);
   struct thread *t = thread_current();
   struct file * file = file_reopen(t->fd[fd]);
   void ** upage = addr;
   off_t offset = 0;
   uint32_t read_bytes = file_length(file);
   uint32_t zero_bytes = PGSIZE - (read_bytes % PGSIZE);
-  lock_acquire(&mapid_lock);
   while(read_bytes > 0 || zero_bytes > 0){
     size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-    stable_alloc(upage, file, offset, page_read_bytes, true, mapid);
+    stable_alloc(upage, file, offset, page_read_bytes, true, mapping);
     offset += page_read_bytes;
     read_bytes -= page_read_bytes;
     zero_bytes -= page_zero_bytes;
     upage += PGSIZE;
-
   }
-  
-  lock_release(&mapid_lock);
   file_close(file);
-  return mapid ++;
+  return mapping;
 }
 
 void munmap(mapid_t mapping){

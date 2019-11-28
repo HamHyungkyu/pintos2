@@ -156,11 +156,12 @@ page_fault (struct intr_frame *f)
   }
   if((not_present)){
      #ifdef VM
-     if((write && stable_stack_alloc(fault_addr)) ||stable_frame_alloc(fault_addr)){
+     if((user && write && stable_stack_alloc(fault_addr)) ||stable_frame_alloc(fault_addr)){
         return;
      }
+      // printf("user %d write %d addr %x\n", user, write, fault_addr);
+
      #endif
-   //   printf("user %d write %d addr %x", user, write, fault_addr);
      exit(-1);
   }
   /* To implement virtual memory, delete the rest of the function
