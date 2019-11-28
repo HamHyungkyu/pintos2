@@ -126,7 +126,7 @@ struct stable_entry* stable_find_entry(struct thread *t, void* addr){
 
 bool stable_is_exist(struct thread* t, void *addr){
     struct stable_entry entry;
-    entry.vaddr = addr;
+    entry.vaddr = pg_round_down(addr);
     if( hash_find(&t->stable, &entry.elem) != NULL){
         return true;
     }

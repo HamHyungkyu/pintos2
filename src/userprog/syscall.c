@@ -294,7 +294,7 @@ mapid_t mmap(int fd, void* addr){
   lock_release(&mapid_lock);
   struct thread *t = thread_current();
   struct file * file = file_reopen(t->fd[fd]);
-  void ** upage = addr;
+  void * upage = addr;
   off_t offset = 0;
   uint32_t read_bytes = file_length(file);
   uint32_t zero_bytes = PGSIZE - (read_bytes % PGSIZE);
@@ -302,15 +302,18 @@ mapid_t mmap(int fd, void* addr){
   while(read_bytes > 0 || zero_bytes > 0){
     size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
     if(stable_is_exist(t, upage)){
       munmap(mapping);
       return -1;
     }
     stable_alloc(upage, file, offset, page_read_bytes, true, mapping);
+
     offset += page_read_bytes;
     read_bytes -= page_read_bytes;
     zero_bytes -= page_zero_bytes;
     upage += PGSIZE;
+
   }
   file_close(file);
   return mapping;
