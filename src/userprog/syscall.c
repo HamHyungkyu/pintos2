@@ -302,8 +302,9 @@ mapid_t mmap(int fd, void* addr){
   while(read_bytes > 0 || zero_bytes > 0){
     size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-    if(stable_is_exist(t, upage)){
+    if(read_bytes == 0 && zero_bytes == PGSIZE)
+      break;
+    if(upage == NULL ||stable_is_exist(t, upage)){
       munmap(mapping);
       return -1;
     }
