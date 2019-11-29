@@ -101,16 +101,17 @@ tid_t process_execute(const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create(fn, PRI_DEFAULT, start_process, fn_copy);
   struct thread *child = thread_get_child(tid);
+  if(child->exit_value == -1){
+    sema_up(&child->sema_exit_scheduler);
+    return -1;
+  }
   sema_down(&child->sema_load);
 
   if (tid == TID_ERROR)
     palloc_free_page(fn_copy);
   palloc_free_page(filname_copy);
 
-  if(child->exit_value == -1){
-    sema_up(&child->sema_exit_scheduler);
-    return -1;
-  }
+
 
   return tid;
 }
