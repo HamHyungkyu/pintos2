@@ -28,5 +28,5 @@ void stable_free(struct stable_entry *entry);
 struct stable_entry* stable_find_entry(struct thread *t, void* addr);
 bool stable_is_exist(struct thread* t, void *addr);
 void stable_munmap(mapid_t mapping);
-
+void stable_exit(struct hash *hash);
 #endif

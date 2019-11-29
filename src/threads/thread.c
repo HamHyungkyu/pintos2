@@ -15,6 +15,7 @@
 #endif
 #ifdef VM
 #include "vm/frame.h"
+#include "vm/page.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -294,11 +295,15 @@ tid_t thread_tid(void)
 void thread_exit(void)
 {
   struct thread * cur = thread_current();
+
   ASSERT(!intr_context());
   sema_up(&cur->sema_scheduler);
   sema_down(&cur->sema_exit_scheduler);
   sema_up(&cur->sema_scheduler);
   list_remove(&cur->childelem);
+#ifdef VM
+  stable_exit(&cur->stable);
+#endif
 #ifdef USERPROG
   process_exit();
 #endif
