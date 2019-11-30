@@ -81,38 +81,36 @@ struct frame_entry * get_frame_eviction(){
     struct list_elem *a;
     struct frame_entry *entry_a;
 
-    
     for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
         entry_a = list_entry(a, struct frame_entry, elem);
-        struct stable_entry * sentry = stable_find_entry(thread_current(), entry_a->user_addr);
-        if(sentry != NULL){
-            if(!sentry->used){
-                if(pagedir_is_accessed(pagedir, entry_a->user_addr)){
-                    pagedir_set_accessed(pagedir, entry_a->user_addr, false);
-                    continue;
-                }
-                else{
-                    //printf("eviction1\n");
-                    return entry_a;
-                }
+        if(pagedir_is_accessed(pagedir, entry_a->user_addr)){
+            pagedir_set_accessed(pagedir, entry_a->user_addr, false);
+            continue;
+        }
+        else{
+            if(!is_user_vaddr(entry_a->user_addr)){
+                // frame deallocate??
+                continue;
             }
+            ASSERT (is_user_vaddr (entry_a->user_addr));
+            //printf("eviction1\n");
+            return entry_a;
         }
     }
 
     for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
         entry_a = list_entry(a, struct frame_entry, elem);
-        struct stable_entry * sentry = stable_find_entry(thread_current(), entry_a->user_addr);
-        if(sentry != NULL){
-            if(!sentry->used){
-                if(pagedir_is_accessed(pagedir, entry_a->user_addr)){
-                    pagedir_set_accessed(pagedir, entry_a->user_addr, false);
-                    continue;
-                }
-                else{
-                    //printf("eviction2\n");
-                    return entry_a;
-                }
+        if(pagedir_is_accessed(pagedir, entry_a->user_addr)){
+            pagedir_set_accessed(pagedir, entry_a->user_addr, false);
+            continue;
+        }
+        else{
+            if(!is_user_vaddr(entry_a->user_addr)){
+                continue;
             }
+            ASSERT (is_user_vaddr (entry_a->user_addr));
+            //printf("eviction1\n");
+            return entry_a;
         }
     }
 }

@@ -30,6 +30,7 @@ bool stable_stack_alloc(void *addr){
     uint8_t *kpage;
     bool success = false;
     if(PHYS_BASE - 2048 * PGSIZE <= addr && addr < PHYS_BASE){
+        //printf("stack alloc\n");
         for(sp = PHYS_BASE - PGSIZE; sp >= pg_round_down(addr); sp -= PGSIZE){
             struct thread *t = thread_current();
             if(stable_is_exist(t, sp)){
@@ -43,8 +44,10 @@ bool stable_stack_alloc(void *addr){
                 if(!success)
                 {
                     palloc_free_page(kpage);
+                    stable_free(entry);
                     return false;
                 }
+                return success;
             }
         }
         return success;
@@ -79,7 +82,6 @@ struct stable_entry* stable_alloc(void* addr, struct file* file, size_t offset, 
     entry->zero_bytes = PGSIZE - read_bytes;
     entry->writable = writable; 
     entry->mapid = mapid;
-    entry->used = false;
     hash_insert(&thread_current()->stable, &entry->elem);
     return entry;
 }
@@ -93,7 +95,6 @@ bool stable_frame_alloc(void* addr){
     if(entry == NULL){
         return false;
     }
-    entry->used = true;
     if(entry->is_loaded){
         return true;
     }

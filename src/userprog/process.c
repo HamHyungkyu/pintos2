@@ -524,8 +524,9 @@ setup_stack(void **esp)
   uint8_t *kpage;
   bool success = stable_stack_alloc(PHYS_BASE - PGSIZE);
   
-  if (success)
+  if (success){
     *esp = PHYS_BASE;
+  }
   return success;
 }
 

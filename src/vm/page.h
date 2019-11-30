@@ -18,7 +18,6 @@ struct stable_entry {
     bool writable;
     mapid_t mapid; // mmap id
     size_t swap_index; // swap index
-    bool used; // init true then false
 };
 
 bool stable_stack_alloc(void *addr);
