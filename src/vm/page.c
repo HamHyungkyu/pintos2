@@ -36,7 +36,7 @@ bool stable_stack_alloc(void *addr){
                 continue;
             }
             entry = stable_stack_element(sp);
-            kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+            kpage = frame_kpage(PAL_USER);
             if (kpage != NULL)
             {
                 success = install_page(sp, kpage, true);
@@ -63,7 +63,7 @@ struct stable_entry* stable_stack_element(void* addr){
     entry->is_loaded = true;
     entry->zero_bytes = 0;
     entry->writable = true;
-    entry->mapid = -1;
+    entry->mapid = -2;
     hash_insert(&thread_current()->stable, &entry->elem);
     return entry;
 }
@@ -79,6 +79,7 @@ struct stable_entry* stable_alloc(void* addr, struct file* file, size_t offset, 
     entry->zero_bytes = PGSIZE - read_bytes;
     entry->writable = writable; 
     entry->mapid = mapid;
+    entry->used = false;
     hash_insert(&thread_current()->stable, &entry->elem);
     return entry;
 }
@@ -90,28 +91,41 @@ bool stable_frame_alloc(void* addr){
     struct stable_entry *entry = stable_find_entry(t, addr);
     
     if(entry == NULL){
-        // printf("entry null");
-         return false;
+        return false;
+    }
+    entry->used = true;
+    if(entry->is_loaded){
+        return true;
     }
 
-    uint8_t *kpage = palloc_get_page(PAL_USER);
-    if(kpage == NULL){
-        // printf("kpage null");
-        kpage = frame_kpage();
+    enum palloc_flags flags = PAL_USER;
+    if(entry->read_bytes == 0){
+        flags |= PAL_ZERO;
     }
-    if(file_read(entry->file, kpage, entry->read_bytes) != (int) entry->read_bytes){
-        palloc_free_page(kpage);
-        // printf("read fail");
-        return false;
+
+    uint8_t *kpage = frame_kpage(flags);
+
+    if(entry->mapid == -2){
+        swap_in(entry->swap_index, kpage);
     }
-    memset(kpage + entry->read_bytes, 0, entry->zero_bytes);
+    else{
+        if(entry->read_bytes > 0){
+            if(file_read(entry->file, kpage, entry->read_bytes) != (int) entry->read_bytes){
+                palloc_free_page(kpage);
+                return false;
+            }
+            memset(kpage + entry->read_bytes, 0, entry->zero_bytes);
+        }
+    }
+
     if(!pagedir_set_page(t->pagedir, pg_round_down(addr), kpage, entry->writable)){
         palloc_free_page(kpage);
-        // printf("set fail\n");
         return false;
     }
-    entry->is_loaded = true;
+
     frame_allocate(pg_round_down(addr));
+    pagedir_set_dirty(t->pagedir, kpage, false);
+    entry->is_loaded = true;
     return true;    
 }
 
@@ -170,6 +184,7 @@ void stable_write_back(struct stable_entry *entry){
             file_write_at(entry->file, addr, entry->read_bytes, entry->offset);
             pagedir_set_dirty (thread_current()->pagedir,  addr, false);
         }
+        file_close(entry->file);
     }
 }
 

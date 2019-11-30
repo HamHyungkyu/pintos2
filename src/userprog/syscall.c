@@ -314,7 +314,6 @@ mapid_t mmap(int fd, void* addr){
     read_bytes -= page_read_bytes;
     zero_bytes -= page_zero_bytes;
     upage += PGSIZE;
-
   }
   file_close(file);
   return mapping;

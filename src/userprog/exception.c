@@ -156,14 +156,22 @@ page_fault (struct intr_frame *f)
      exit(-1);
   }
   if((not_present)){
-     #ifdef VM
-     if((user && write && stable_stack_alloc(fault_addr)) ||stable_frame_alloc(fault_addr)){
-            //   printf("user %d write %d addr %x\n", user, write, fault_addr);
-
+    #ifdef VM
+    struct stable_entry * sentry = stable_find_entry(thread_current(), fault_addr);
+    if(sentry){
+      if(stable_frame_alloc(fault_addr)){
+        struct stable_entry * sentry = stable_find_entry(thread_current(), fault_addr);
+        sentry->used = false;
         return;
-     }
+      }
+    }
+    else{
+      if(user && write && stable_stack_alloc(fault_addr)){
+        return;
+      }
+    }
 
-     #endif
+    #endif
    //   printf("user %d write %d addr %x\n", user, write, fault_addr);
      exit(-1);
   }
