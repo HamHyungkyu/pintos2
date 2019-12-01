@@ -18,6 +18,8 @@ struct stable_entry {
     bool writable;
     mapid_t mapid; // mmap id
     size_t swap_index; // swap index
+    bool is_swap;
+    bool used;
 };
 
 bool stable_stack_alloc(void *addr);
@@ -29,4 +31,5 @@ struct stable_entry* stable_find_entry(struct thread *t, void* addr);
 bool stable_is_exist(struct thread* t, void *addr);
 void stable_munmap(mapid_t mapping);
 void stable_exit(struct hash *hash);
+void stable_func (struct hash_elem *e, void *aux UNUSED);
 #endif

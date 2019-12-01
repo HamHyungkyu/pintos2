@@ -17,7 +17,6 @@ void frame_allocate(void * user_addr){
     struct frame_entry *frame = malloc(sizeof(struct frame_entry));
     frame->thread = thread_current();
     frame->user_addr = user_addr;
-    struct frame_entry *entry_a = list_entry(&frame->elem, struct frame_entry, elem);
     if(list_size(&frame_table)){
         list_push_back(&frame_table, &frame->elem);
     }
@@ -33,6 +32,7 @@ void frame_deallocate(void * user_adder){
         entry_a = list_entry(a, struct frame_entry, elem);
         if(entry_a->user_addr == user_adder){
             list_remove(a);
+            palloc_free_page(pagedir_get_page(thread_current()->pagedir, entry_a->user_addr));
             free(entry_a);
             break;
         }
@@ -46,6 +46,7 @@ void frame_destory(){
     for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
         entry_a = list_entry(a, struct frame_entry, elem);
         list_remove(a);
+        palloc_free_page(pagedir_get_page(thread_current()->pagedir, entry_a->user_addr));
         free(entry_a);
     }
 }
@@ -53,14 +54,14 @@ void frame_destory(){
 void * frame_kpage(enum palloc_flags flags){
     void * kpage = palloc_get_page(PAL_USER | flags);
 
-    if(kpage == NULL){
-        struct frame_entry * frame_eviction = get_frame_eviction();
+    while(!kpage){
         //printf("frame kpage1\n");
+        struct frame_entry * frame_eviction = get_frame_eviction();
         struct thread * t = frame_eviction->thread;
-        void * page = pagedir_get_page(t->pagedir, frame_eviction->user_addr);
+        void * page = pagedir_get_page(thread_current()->pagedir, frame_eviction->user_addr);
         struct stable_entry * entry = stable_find_entry(t, frame_eviction->user_addr);
 
-        if(entry->mapid == -2){
+        if(entry->is_swap){
             entry->swap_index = swap_out(page);
         }
 
@@ -77,22 +78,25 @@ void * frame_kpage(enum palloc_flags flags){
 }
 
 struct frame_entry * get_frame_eviction(){
-    uint32_t * pagedir = thread_current()->pagedir;
+    uint32_t * pagedir;
     struct list_elem *a;
     struct frame_entry *entry_a;
 
     for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
         entry_a = list_entry(a, struct frame_entry, elem);
+        pagedir = entry_a->thread->pagedir;
         if(pagedir_is_accessed(pagedir, entry_a->user_addr)){
             pagedir_set_accessed(pagedir, entry_a->user_addr, false);
             continue;
         }
         else{
+            
             if(!is_user_vaddr(entry_a->user_addr)){
-                // frame deallocate??
+                stable_free(entry_a);
                 continue;
             }
             ASSERT (is_user_vaddr (entry_a->user_addr));
+            
             //printf("eviction1\n");
             return entry_a;
         }
@@ -100,15 +104,19 @@ struct frame_entry * get_frame_eviction(){
 
     for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
         entry_a = list_entry(a, struct frame_entry, elem);
+        pagedir = entry_a->thread->pagedir;
         if(pagedir_is_accessed(pagedir, entry_a->user_addr)){
             pagedir_set_accessed(pagedir, entry_a->user_addr, false);
             continue;
         }
         else{
+            
             if(!is_user_vaddr(entry_a->user_addr)){
+                stable_free(entry_a);
                 continue;
             }
             ASSERT (is_user_vaddr (entry_a->user_addr));
+            
             //printf("eviction1\n");
             return entry_a;
         }

@@ -24,7 +24,6 @@ install_page(void *upage, void *kpage, bool writable)
   return (pagedir_get_page(t->pagedir, upage) == NULL && pagedir_set_page(t->pagedir, upage, kpage, writable));
 }
 
- 
 bool stable_stack_alloc(void *addr){
     void *sp;
     struct stable_entry *entry;
@@ -67,7 +66,8 @@ struct stable_entry* stable_stack_element(void* addr){
     entry->is_loaded = true;
     entry->zero_bytes = 0;
     entry->writable = true;
-    entry->mapid = -2;
+    entry->mapid = -1;
+    entry->is_swap = true;
     hash_insert(&thread_current()->stable, &entry->elem);
     return entry;
 }
@@ -83,6 +83,7 @@ struct stable_entry* stable_alloc(void* addr, struct file* file, size_t offset, 
     entry->zero_bytes = PGSIZE - read_bytes;
     entry->writable = writable; 
     entry->mapid = mapid;
+    entry->is_swap = false;
     hash_insert(&thread_current()->stable, &entry->elem);
     return entry;
 }
@@ -90,15 +91,18 @@ struct stable_entry* stable_alloc(void* addr, struct file* file, size_t offset, 
 /* When Page fault exceptin, check valid address and allocate frame.
  */
 bool stable_frame_alloc(void* addr){
+    //printf("stable1\n");
     struct thread *t = thread_current();
     struct stable_entry *entry = stable_find_entry(t, addr);
     
     if(entry == NULL){
         return false;
     }
+    entry->used = true;
     if(entry->is_loaded){
-        return true;
+        return false;
     }
+    //printf("stable2\n");
 
     enum palloc_flags flags = PAL_USER;
     if(entry->read_bytes == 0){
@@ -107,8 +111,14 @@ bool stable_frame_alloc(void* addr){
 
     uint8_t *kpage = frame_kpage(flags);
 
-    if(entry->mapid == -2){
+    if(entry->is_swap){
+        if(!pagedir_set_page(t->pagedir, pg_round_down(addr), kpage, entry->writable)){
+            palloc_free_page(kpage);
+            return false;
+        }
+        //printf("is_swap\n");
         swap_in(entry->swap_index, kpage);
+        entry->is_loaded = true;
     }
     else{
         if(entry->read_bytes > 0){
@@ -118,11 +128,11 @@ bool stable_frame_alloc(void* addr){
             }
             memset(kpage + entry->read_bytes, 0, entry->zero_bytes);
         }
-    }
 
-    if(!pagedir_set_page(t->pagedir, pg_round_down(addr), kpage, entry->writable)){
-        palloc_free_page(kpage);
-        return false;
+        if(!pagedir_set_page(t->pagedir, pg_round_down(addr), kpage, entry->writable)){
+            palloc_free_page(kpage);
+            return false;
+        }
     }
 
     frame_allocate(pg_round_down(addr));
@@ -146,7 +156,7 @@ struct stable_entry* stable_find_entry(struct thread *t, void* addr){
 bool stable_is_exist(struct thread* t, void *addr){
     struct stable_entry entry;
     entry.vaddr = pg_round_down(addr);
-    if( hash_find(&t->stable, &entry.elem) != NULL){
+    if(hash_find(&t->stable, &entry.elem) != NULL){
         return true;
     }
     return false;
@@ -173,7 +183,7 @@ void stable_mapping_free(struct hash_elem *elem, void* aux){
 void stable_free(struct stable_entry *entry){
     void * addr = pg_round_down(entry->vaddr);
     stable_write_back(entry);
-    if(entry->is_loaded);{
+    if(entry->is_loaded){
         pagedir_clear_page(thread_current()->pagedir, addr);
         frame_deallocate(addr);
     }
@@ -193,7 +203,13 @@ void stable_write_back(struct stable_entry *entry){
 }
 
 void stable_exit(struct hash *hash){
-    hash_destroy(hash, &stable_free_elem);
+    hash_destroy(hash, stable_func);
+}
+
+void stable_func (struct hash_elem *e, void *aux UNUSED)
+{
+  struct stable_entry *entry = hash_entry(e, struct stable_entry, elem);
+  stable_free(entry);
 }
 
 void stable_free_elem(struct hash_elem *elem, void *aux){

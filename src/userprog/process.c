@@ -521,7 +521,6 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack(void **esp)
 {
-  uint8_t *kpage;
   bool success = stable_stack_alloc(PHYS_BASE - PGSIZE);
   
   if (success){
