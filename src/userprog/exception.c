@@ -160,6 +160,7 @@ page_fault (struct intr_frame *f)
     struct stable_entry * sentry = stable_find_entry(thread_current(), fault_addr);
     if(sentry){
       if(stable_frame_alloc(fault_addr)){
+        sentry->used = false;
         return;
       }
     }

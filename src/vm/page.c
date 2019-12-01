@@ -47,7 +47,10 @@ bool stable_stack_alloc(void *addr){
                     stable_free(entry);
                     return false;
                 }
-                return success;
+
+                if(intr_context()){
+                    entry->used = false;
+                }
             }
         }
         return success;
@@ -68,6 +71,7 @@ struct stable_entry* stable_stack_element(void* addr){
     entry->writable = true;
     entry->mapid = -1;
     entry->is_swap = true;
+    entry->used = true;
     hash_insert(&thread_current()->stable, &entry->elem);
     return entry;
 }
@@ -84,6 +88,7 @@ struct stable_entry* stable_alloc(void* addr, struct file* file, size_t offset, 
     entry->writable = writable; 
     entry->mapid = mapid;
     entry->is_swap = false;
+    entry->used = false;
     hash_insert(&thread_current()->stable, &entry->elem);
     return entry;
 }
@@ -103,24 +108,26 @@ bool stable_frame_alloc(void* addr){
         return false;
     }
     //printf("stable2\n");
-
-    enum palloc_flags flags = PAL_USER;
-    if(entry->read_bytes == 0){
-        flags |= PAL_ZERO;
-    }
-
-    uint8_t *kpage = frame_kpage(flags);
+    uint8_t *kpage;
 
     if(entry->is_swap){
-        if(!pagedir_set_page(t->pagedir, pg_round_down(addr), kpage, entry->writable)){
+        kpage = frame_kpage(PAL_USER);
+
+        if(!install_page(pg_round_down(addr), kpage, entry->writable)){
             palloc_free_page(kpage);
             return false;
         }
         //printf("is_swap\n");
-        swap_in(entry->swap_index, kpage);
-        entry->is_loaded = true;
+        swap_in(entry->swap_index, entry->vaddr);
     }
     else{
+        enum palloc_flags flags = PAL_USER;
+        if(entry->read_bytes == 0){
+            flags |= PAL_ZERO;
+        }
+
+        kpage = frame_kpage(flags);
+
         if(entry->read_bytes > 0){
             if(file_read(entry->file, kpage, entry->read_bytes) != (int) entry->read_bytes){
                 palloc_free_page(kpage);
@@ -129,14 +136,12 @@ bool stable_frame_alloc(void* addr){
             memset(kpage + entry->read_bytes, 0, entry->zero_bytes);
         }
 
-        if(!pagedir_set_page(t->pagedir, pg_round_down(addr), kpage, entry->writable)){
+        if(!install_page(pg_round_down(addr), kpage, entry->writable)){
             palloc_free_page(kpage);
             return false;
         }
     }
-
     frame_allocate(pg_round_down(addr));
-    pagedir_set_dirty(t->pagedir, kpage, false);
     entry->is_loaded = true;
     return true;    
 }
