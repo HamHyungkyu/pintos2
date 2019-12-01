@@ -8,6 +8,7 @@ bool stable_less(struct hash_elem *a, struct hash_elem *b, void *aux);
 size_t stable_hash_hash(struct hash_elem *a, void *aux);
 struct stable_entry* stable_stack_element(void* addr);
 void stable_free_elem(struct hash_elem *elem, void *aux);
+void stable_mapping_free(struct hash_elem *elem, void* aux);
 
 void stable_init(struct hash *table){
     hash_init(table, &stable_hash_hash, &stable_less, NULL);
@@ -157,15 +158,16 @@ void stable_munmap(mapid_t mapping){
     hash_first(&i, table);
     struct hash_elem *elem;
     struct stable_entry *entry;
-    
-    for(elem = hash_next(&i);  elem != NULL; elem = hash_next(&i))
-    {
+    table->aux = mapping;    
+    hash_apply(table, &stable_mapping_free);
+    table->aux = NULL;    
+}
 
-        entry = hash_entry(elem, struct stable_entry, elem);
-        if(entry->mapid == mapping){
-            stable_free(entry);
-        }
-    } 
+void stable_mapping_free(struct hash_elem *elem, void* aux){
+    struct stable_entry *entry = hash_entry(elem, struct stable_entry, elem);
+    if(entry->mapid == aux){
+        stable_free(entry);
+    }
 }
 
 void stable_free(struct stable_entry *entry){
@@ -175,7 +177,8 @@ void stable_free(struct stable_entry *entry){
         pagedir_clear_page(thread_current()->pagedir, addr);
         frame_deallocate(addr);
     }
-    struct hash_elem * elem = hash_delete(&thread_current()->stable, &entry->elem);
+    hash_delete(&thread_current()->stable, &entry->elem);
+    free(entry);
 }
 
 void stable_write_back(struct stable_entry *entry){
