@@ -93,12 +93,6 @@ struct frame_entry * get_frame_eviction(){
                     continue;
                 }
                 else{
-                    if(!is_user_vaddr(entry_a->user_addr)){
-                        stable_free(entry_a);
-                        continue;
-                    }
-                    ASSERT (is_user_vaddr (entry_a->user_addr));
-                
                     //printf("eviction1\n");
                     return entry_a;
                 }
@@ -117,13 +111,7 @@ struct frame_entry * get_frame_eviction(){
                     continue;
                 }
                 else{
-                    if(!is_user_vaddr(entry_a->user_addr)){
-                        stable_free(entry_a);
-                        continue;
-                    }
-                    ASSERT (is_user_vaddr (entry_a->user_addr));
-                
-                    //printf("eviction1\n");
+                    //printf("eviction2\n");
                     return entry_a;
                 }
             }

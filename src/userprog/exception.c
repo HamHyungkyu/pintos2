@@ -163,6 +163,7 @@ page_fault (struct intr_frame *f)
         sentry->used = false;
         return;
       }
+      sentry->used = false;
     }
     else{
       if(user && write && stable_stack_alloc(fault_addr)){

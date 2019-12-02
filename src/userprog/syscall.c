@@ -15,12 +15,18 @@
 #include "vm/frame.h"
 #include "vm/page.h"
 
-
 static int mapid;
 static struct lock mapid_lock;
 
 static void syscall_handler(struct intr_frame *);
 void address_checking(int * p);
+struct stable_entry* load_checking(const void * vaddr, bool write, bool user);
+void buffer_checking(void * buffer, unsigned size, bool writable, bool write, bool user);
+void string_checking(const void * str, bool writeb, bool userb);
+
+void noused(void * vaddr);
+void noused_str(void * str);
+void noused_buf(void * buffer, unsigned size);
 
 void halt(void);
 void exit(int status);
@@ -60,8 +66,13 @@ static void
 syscall_handler(struct intr_frame *f UNUSED)
 {
   int *p = f->esp;
+  //printf("%d", *p);
 
   address_checking(p);
+
+  bool writeb = (f->error_code & PF_W) != 0;
+  bool userb = (f->error_code & PF_U) != 0;
+  load_checking((const void *)p, writeb, userb);
 
   //printf ("System call: %d\n", *p);
   switch (*p)
@@ -76,7 +87,9 @@ syscall_handler(struct intr_frame *f UNUSED)
     break;
   case SYS_EXEC:
     address_checking(p + 1);
+    string_checking(*(p + 1), writeb, userb);
     f->eax = exec(*(p + 1));
+    noused_str(*(p + 1));
     break;
   case SYS_WAIT:
     address_checking(p + 1);
@@ -86,15 +99,20 @@ syscall_handler(struct intr_frame *f UNUSED)
   //
   case SYS_CREATE:
     address_checking(p + 2);
+    string_checking(*(p + 1), writeb, userb);
     f->eax = create(*(p + 1), *(p + 2));
+    noused_str(*(p + 1));
     break;
   case SYS_REMOVE:
+  	string_checking(*(p + 1), writeb, userb);
     f->eax = remove(*(p + 1));
     break;
   case SYS_OPEN:
+  	string_checking(*(p + 1), writeb, userb);
     file_lock_acquire();
     f->eax = open(*(p + 1));
     file_lock_release();
+    noused_str(*(p + 1));
     break;
   case SYS_FILESIZE:
     address_checking(p + 1);
@@ -103,16 +121,22 @@ syscall_handler(struct intr_frame *f UNUSED)
   case SYS_READ:
     address_checking(p + 1);
     address_checking(p + 3);
+    buffer_checking(*(p + 2), *(p + 3), true, writeb, userb);
     file_lock_acquire();
     f->eax = read(*(p + 1), *(p + 2), *(p + 3));
     file_lock_release();
+    noused_buf(*(p + 2), *(p + 3));
     break;
   case SYS_WRITE:
     address_checking(p + 1);
     address_checking(p + 3);
+    buffer_checking(*(p + 2), *(p + 3), false, writeb, userb);
+    //printf("sys_write\n");
     file_lock_acquire();
     f->eax = write(*(p + 1), *(p + 2), *(p + 3));
     file_lock_release();
+    noused_buf(*(p + 2), *(p + 3));
+    //printf("sys_write\n");
     break;
   case SYS_SEEK:
     address_checking(p + 1);
@@ -135,16 +159,89 @@ syscall_handler(struct intr_frame *f UNUSED)
   case SYS_MUNMAP: 
     address_checking(p + 1);
     munmap(*(p + 1));
+    break;
   }
+  noused(p);
 }
 
-void address_checking(int *p)
+void address_checking(int * p)
 {
   if (!is_user_vaddr(p))
   {
     exit(-1);
   }
 }
+
+struct stable_entry* load_checking(const void * vaddr, bool write, bool user){
+	if(!is_user_vaddr(vaddr)){
+		exit(-1);
+	}
+
+	struct stable_entry * sentry = stable_find_entry(thread_current(), vaddr);
+	if(sentry){
+		if(!stable_frame_alloc(vaddr)){
+			if(!sentry->is_loaded){
+				exit(-1);
+			}
+		}
+	}
+	else if(user && write){
+		if(!stable_stack_alloc(vaddr)){
+			exit(-1);
+		}
+	}
+
+	return sentry;
+}
+
+void buffer_checking(void * buffer, unsigned size, bool writable, bool writeb, bool userb){
+	char * temp_buffer = (char *) buffer;
+
+	for (unsigned i = 0; i < size; i++)
+	{
+		struct stable_entry * sentry = load_checking((const void *)temp_buffer, writeb, userb);
+
+		if(sentry && writable){
+			if(!sentry->writable){
+				exit(-1);
+			}
+		}
+		temp_buffer++;
+	}
+}
+
+void string_checking(const void * str, bool writeb, bool userb){
+	load_checking(str, writeb, userb);
+	while(*(char *) str != 0){
+		str = (char *)str + 1;
+		load_checking(str, writeb, userb);
+	}
+}
+
+void noused(void * vaddr){
+	struct stable_entry * sentry = stable_find_entry(thread_current(), vaddr);
+	if(sentry){
+		sentry->used = false;
+	}
+}
+
+void noused_str(void * str){
+	noused(str);
+	while(*(char *) str != 0){
+		str = (char *)str + 1;
+		noused(str);
+	}
+}
+
+void noused_buf(void * buffer, unsigned size){
+	char * temp_buffer = (char *) buffer;
+
+	for(unsigned i = 0; i < size; i++){
+		noused(temp_buffer);
+		temp_buffer++;
+	}
+}
+
 
 //
 void halt(void)

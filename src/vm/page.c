@@ -37,10 +37,13 @@ bool stable_stack_alloc(void *addr){
                 continue;
             }
             entry = stable_stack_element(sp);
+            if(!entry){
+                return false;
+            }
             kpage = frame_kpage(PAL_USER);
             if (kpage != NULL)
             {
-                success = install_page(sp, kpage, true);
+                success = install_page(sp, kpage, entry->writable);
                 if(!success)
                 {
                     palloc_free_page(kpage);
@@ -51,6 +54,10 @@ bool stable_stack_alloc(void *addr){
                 if(intr_context()){
                     entry->used = false;
                 }
+            }
+            else{
+                stable_free(entry);
+                return false;
             }
         }
         return success;
