@@ -55,15 +55,15 @@ void * frame_kpage(enum palloc_flags flags){
     void * kpage = palloc_get_page(PAL_USER | flags);
 
     while(!kpage){
-        //printf("frame kpage1\n");
+        // printf("frame kpage1\n");
         struct frame_entry * frame_eviction = get_frame_eviction();
         struct thread * t = frame_eviction->thread;
         void * page = pagedir_get_page(thread_current()->pagedir, frame_eviction->user_addr);
         struct stable_entry * entry = stable_find_entry(t, frame_eviction->user_addr);
 
-        if(entry->is_swap){
+        // if(entry->is_swap){
             entry->swap_index = swap_out(page);
-        }
+        // }
 
         entry->is_loaded = false;
         list_remove(&frame_eviction->elem);

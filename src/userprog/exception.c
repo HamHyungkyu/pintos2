@@ -160,6 +160,7 @@ page_fault (struct intr_frame *f)
     struct stable_entry * sentry = stable_find_entry(thread_current(), fault_addr);
     if(sentry){
       if(stable_frame_alloc(fault_addr)){
+        // printf("fault addr %X \n", fault_addr);
         sentry->used = false;
         return;
       }
@@ -167,6 +168,7 @@ page_fault (struct intr_frame *f)
     }
     else{
       if(user && write && stable_stack_alloc(fault_addr)){
+        // printf("stack alloc %d", fault_addr);
         return;
       }
     }
