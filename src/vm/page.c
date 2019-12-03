@@ -103,18 +103,27 @@ bool stable_frame_alloc(void* addr){
     }
 
     enum palloc_flags flags = PAL_USER;
-    if(entry->read_bytes == 0){
-        flags |= PAL_ZERO;
-    }
-
-    uint8_t *kpage = frame_kpage(flags);
+    uint8_t *kpage;
     int swap_index = entry->swap_index;
 
     if(swap_index >= 0){
+        kpage = frame_kpage(flags);
+
+        if(!pagedir_set_page(t->pagedir, pg_round_down(addr), kpage, entry->writable)){
+            palloc_free_page(kpage);
+            return false;
+        }
+
         swap_in(entry->swap_index, kpage);
         entry->swap_index = -1;
     }
     else{
+        if(entry->read_bytes == 0){
+            flags |= PAL_ZERO;
+        }
+
+        kpage = frame_kpage(flags);
+
         if(entry->read_bytes > 0){
             if(file_read(entry->file, kpage, entry->read_bytes) != (int) entry->read_bytes){
                 palloc_free_page(kpage);
@@ -122,13 +131,12 @@ bool stable_frame_alloc(void* addr){
             }
             memset(kpage + entry->read_bytes, 0, entry->zero_bytes);
         }
-    }
 
-    if(!pagedir_set_page(t->pagedir, pg_round_down(addr), kpage, entry->writable)){
-        palloc_free_page(kpage);
-        return false;
+        if(!pagedir_set_page(t->pagedir, pg_round_down(addr), kpage, entry->writable)){
+            palloc_free_page(kpage);
+            return false;
+        }
     }
-
     frame_allocate(pg_round_down(addr));
     pagedir_set_dirty(t->pagedir, kpage, false);
     entry->is_loaded = true;
