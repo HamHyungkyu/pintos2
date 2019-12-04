@@ -191,6 +191,7 @@ void stable_free(struct stable_entry *entry){
     }
     hash_delete(&thread_current()->stable, &entry->elem);
     free(entry);
+
 }
 
 void stable_write_back(struct stable_entry *entry){
@@ -205,8 +206,8 @@ void stable_write_back(struct stable_entry *entry){
 }
 
 void stable_exit(struct hash *hash){
-    frame_thread_remove(thread_current());
     hash_destroy(hash, &stable_free_elem);
+    frame_thread_remove(thread_current());
 }
 
 void stable_free_elem(struct hash_elem *elem, void *aux){

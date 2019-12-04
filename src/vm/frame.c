@@ -39,6 +39,7 @@ void frame_deallocate(void * user_adder){
         entry_a = list_entry(a, struct frame_entry, elem);
         if(entry_a->user_addr == user_adder){
             list_remove(a);
+            pagedir_clear_page(entry_a->thread->pagedir, entry_a->user_addr);
             palloc_free_page(entry_a->kpage);
             free(entry_a);
             break;
