@@ -9,6 +9,7 @@ size_t stable_hash_hash(struct hash_elem *a, void *aux);
 struct stable_entry* stable_stack_element(void* addr);
 void stable_free_elem(struct hash_elem *elem, void *aux);
 void stable_mapping_free(struct hash_elem *elem, void* aux);
+void stable_remove_thread(struct stable_entry *entry);
 
 void stable_init(struct hash *table){
     hash_init(table, &stable_hash_hash, &stable_less, NULL);
@@ -137,7 +138,7 @@ bool stable_frame_alloc(void* addr){
             return false;
         }
     }
-    frame_allocate(pg_round_down(addr));
+    frame_allocate(pg_round_down(addr), kpage);
     pagedir_set_dirty(t->pagedir, kpage, false);
     entry->is_loaded = true;
     return true;    
@@ -186,7 +187,6 @@ void stable_free(struct stable_entry *entry){
     void * addr = pg_round_down(entry->vaddr);
     stable_write_back(entry);
     if(entry->is_loaded);{
-        pagedir_clear_page(thread_current()->pagedir, addr);
         frame_deallocate(addr);
     }
     hash_delete(&thread_current()->stable, &entry->elem);
@@ -205,11 +205,13 @@ void stable_write_back(struct stable_entry *entry){
 }
 
 void stable_exit(struct hash *hash){
+    frame_thread_remove(thread_current());
     hash_destroy(hash, &stable_free_elem);
 }
 
 void stable_free_elem(struct hash_elem *elem, void *aux){
-    stable_write_back(hash_entry(elem, struct stable_entry, elem));
+    struct stable_entry* entry = hash_entry(elem, struct stable_entry, elem);
+    stable_write_back(entry);
 }
 
 

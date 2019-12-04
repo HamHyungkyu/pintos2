@@ -157,6 +157,8 @@ page_fault (struct intr_frame *f)
   }
   if((not_present)){
     #ifdef VM
+    // printf("not presetn ? fault addr %X \n", fault_addr);
+
     struct stable_entry * sentry = stable_find_entry(thread_current(), fault_addr);
     if(sentry){
       if(stable_frame_alloc(fault_addr)){
@@ -178,7 +180,7 @@ page_fault (struct intr_frame *f)
      exit(-1);
   }
   if(!not_present  && write){
-   //   printf("trying to write existing code data %x\n", fault_addr);
+    //  printf("trying to write existing code data %x\n", fault_addr);
      exit(-1);
   }
 
