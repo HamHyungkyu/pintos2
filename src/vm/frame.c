@@ -128,6 +128,11 @@ struct frame_entry * get_frame_eviction(){
             }
         }
     }
+
+    if(entry_a == NULL){
+        PANIC("Evict Fail");
+    }
+
     return entry_a;
 }
 

@@ -213,6 +213,7 @@ void stable_exit(struct hash *hash){
 void stable_free_elem(struct hash_elem *elem, void *aux){
     struct stable_entry* entry = hash_entry(elem, struct stable_entry, elem);
     stable_write_back(entry);
+    swap_free(entry->swap_index);
 }
 
 

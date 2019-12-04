@@ -48,3 +48,9 @@ size_t swap_out(void * frame_page){
 		return -1;
 	}
 }
+
+void swap_free(size_t swap_index){
+	if(swap_index < SECTORS_PER_PAGE && swap_index != -1){
+		bitmap_set(swap_map, swap_index, 0);
+	}
+}
