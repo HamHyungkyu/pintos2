@@ -177,9 +177,9 @@ page_fault (struct intr_frame *f)
     }
 
     #endif
-    debug_backtrace_all ();
+    // debug_backtrace_all ();
 
-     printf("user %d write %d addr %x\n", user, write, fault_addr);
+    //  printf("user %d write %d addr %x\n", user, write, fault_addr);
      exit(-1);
   }
   if(!not_present  && write){
