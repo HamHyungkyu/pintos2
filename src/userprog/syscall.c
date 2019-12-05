@@ -14,13 +14,14 @@
 #include "threads/malloc.h"
 #include "vm/frame.h"
 #include "vm/page.h"
+#include <debug.h>
 
 static int mapid;
 static struct lock mapid_lock;
 
 static void syscall_handler(struct intr_frame *);
 void address_checking(int * p);
-
+void buffer_checking(void *buffer, unsigned size);
 void halt(void);
 void exit(int status);
 pid_t exec(const char* cmd_line);
@@ -239,7 +240,7 @@ int filesize(int fd) {
 int read(int fd, void * b, unsigned size){
   uint8_t *buffer = b;
   address_checking(buffer);
-  
+  buffer_checking(buffer, size);
   if(fd == 0){
     for(int i = 0; i < size; i++){
       buffer[i] = input_getc();
@@ -259,6 +260,8 @@ int read(int fd, void * b, unsigned size){
 int write(int fd, const void *buffer, unsigned size)
 {
   address_checking(buffer);
+  buffer_checking(buffer, size);
+
   if (fd == 1)
   {
     putbuf(buffer, size);
@@ -347,6 +350,24 @@ void thread_close(int status){
       close(i);
     }
   }
+}
+
+void buffer_checking(void *b, unsigned size){
+  void *buffer = b;
+  int cunt = size / PGSIZE + 1;
+  int zero_bytes = size % PGSIZE;
+  for(int i = 0; i < cunt; i ++){
+    struct stable_entry *entry = stable_find_entry(thread_current(), buffer);
+    if(entry != NULL && !entry->is_loaded){
+      stable_frame_alloc(entry->vaddr);
+    }
+    else if(entry == NULL){
+      entry = stable_alloc(buffer, NULL, 0, PGSIZE, true, -1);
+      stable_frame_alloc(entry->vaddr);
+    }
+    buffer += PGSIZE;
+  }
+
 }
 
 void file_lock_acquire(void){
