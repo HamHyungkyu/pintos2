@@ -15,11 +15,12 @@ void frame_init(){
     lock_init(&frame_lock);
 }
 
-void frame_allocate(void * user_addr, void *kpage){
+void frame_allocate(struct stable_entry* entry, void *kpage){
     lock_acquire(&frame_lock);
     struct frame_entry *frame = malloc(sizeof(struct frame_entry));
     frame->thread = thread_current();
-    frame->user_addr = user_addr;
+    frame->user_addr = entry->vaddr;
+    frame->entry = entry;
     frame->kpage = kpage;
     if(list_size(&frame_table)){
         list_push_back(&frame_table, &frame->elem);
@@ -87,7 +88,7 @@ void * frame_kpage(enum palloc_flags flags){
         struct frame_entry * frame_eviction = get_frame_eviction();
         struct thread * t = frame_eviction->thread;
          struct stable_entry * entry;
-        entry = stable_find_entry(t, frame_eviction->user_addr);
+        entry = frame_eviction->entry;
         if(entry->file != NULL && entry->mapid != -1){
             stable_write_back(entry);
         }
@@ -117,7 +118,7 @@ struct frame_entry * get_frame_eviction(){
         for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
             entry_a = list_entry(a, struct frame_entry, elem);
             pagedir = entry_a->thread->pagedir;
-            struct stable_entry * sentry = stable_find_entry(entry_a->thread, entry_a->user_addr);
+            struct stable_entry * sentry = entry_a->entry;
             if(sentry!= NULL){
                     if(pagedir_is_accessed(pagedir, entry_a->user_addr)){
                         pagedir_set_accessed(pagedir, entry_a->user_addr, false);

@@ -10,9 +10,10 @@ struct frame_entry {
     struct list_elem elem;
     void* user_addr;
     void* kpage;
+    struct stable_entry* entry;
 };
 void frame_init();
-void frame_allocate(void * user_addr, void *kpage);
+void frame_allocate(struct stable_entry* entry, void *kpage);
 void frame_deallocate(void * user_adder);
 void frame_thread_remove(struct thread* t);
 struct frame_entry * get_frame_eviction();

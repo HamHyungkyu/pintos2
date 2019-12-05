@@ -138,7 +138,7 @@ bool stable_frame_alloc(void* addr){
             return false;
         }
     }
-    frame_allocate(pg_round_down(addr), kpage);
+    frame_allocate(entry, kpage);
     pagedir_set_dirty(t->pagedir, kpage, false);
     entry->is_loaded = true;
     return true;    
@@ -186,6 +186,7 @@ void stable_mapping_free(struct hash_elem *elem, void* aux){
 void stable_free(struct stable_entry *entry){
     void * addr = pg_round_down(entry->vaddr);
     stable_write_back(entry);
+    file_close(entry->file);
     if(entry->is_loaded);{
         frame_deallocate(addr);
     }
@@ -196,7 +197,7 @@ void stable_free(struct stable_entry *entry){
 
 void stable_write_back(struct stable_entry *entry){
     void * addr = pg_round_down(entry->vaddr);
-    if(entry-> is_loaded && entry->file != NULL && entry->mapid != -1){
+    if(entry != NULL && entry-> is_loaded && entry->file != NULL && entry->mapid != -1){
         if(pagedir_is_dirty(thread_current()->pagedir, addr)){
             file_write_at(entry->file, addr, entry->read_bytes, entry->offset);
             pagedir_set_dirty (thread_current()->pagedir,  addr, false);

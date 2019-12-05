@@ -5,6 +5,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include <debug.h>
 #ifdef VM
 #include "vm/page.h"
 #endif
@@ -176,7 +177,9 @@ page_fault (struct intr_frame *f)
     }
 
     #endif
-    //  printf("user %d write %d addr %x\n", user, write, fault_addr);
+    debug_backtrace_all ();
+
+     printf("user %d write %d addr %x\n", user, write, fault_addr);
      exit(-1);
   }
   if(!not_present  && write){
