@@ -77,7 +77,7 @@ struct stable_entry* stable_stack_element(void* addr){
 struct stable_entry* stable_alloc(void* addr, struct file* file, size_t offset, size_t read_bytes, bool writable, mapid_t mapid){
     struct stable_entry *entry = malloc(sizeof(struct stable_entry));
     entry->vaddr = pg_round_down(addr);
-    entry->offset = addr - entry->vaddr;
+    entry->offset = offset;
     entry->file = file_reopen(file);
     file_seek(entry->file, offset);
     entry->read_bytes = read_bytes;
@@ -126,7 +126,7 @@ bool stable_frame_alloc(void* addr){
         kpage = frame_kpage(flags);
 
         if(entry->read_bytes > 0){
-            if(file_read(entry->file, kpage, entry->read_bytes) != (int) entry->read_bytes){
+            if(file_read_at(entry->file, kpage, entry->read_bytes, entry->offset) != (int) entry->read_bytes){
                 palloc_free_page(kpage);
                 return false;
             }
@@ -201,7 +201,6 @@ void stable_write_back(struct stable_entry *entry){
             file_write_at(entry->file, addr, entry->read_bytes, entry->offset);
             pagedir_set_dirty (thread_current()->pagedir,  addr, false);
         }
-        file_close(entry->file);
     }
 }
 
@@ -214,6 +213,7 @@ void stable_free_elem(struct hash_elem *elem, void *aux){
     struct stable_entry* entry = hash_entry(elem, struct stable_entry, elem);
     stable_write_back(entry);
     swap_free(entry->swap_index);
+    file_close(entry->file);
     free(entry);
 }
 

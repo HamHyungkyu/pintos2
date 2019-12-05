@@ -87,9 +87,13 @@ void * frame_kpage(enum palloc_flags flags){
         struct frame_entry * frame_eviction = get_frame_eviction();
         struct thread * t = frame_eviction->thread;
          struct stable_entry * entry;
-        // void * page = pagedir_get_page(t->pagedir, frame_eviction->user_addr);
         entry = stable_find_entry(t, frame_eviction->user_addr);
-        entry->swap_index = swap_out(frame_eviction->kpage);
+        if(entry->file != NULL && entry->mapid != -1){
+            stable_write_back(entry);
+        }
+        else{
+            entry->swap_index = swap_out(frame_eviction->kpage);
+        }
         entry->is_loaded = false;
         pagedir_clear_page(t->pagedir, frame_eviction->user_addr);
         palloc_free_page(frame_eviction->kpage);
