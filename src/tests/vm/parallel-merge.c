@@ -54,7 +54,6 @@ sort_chunks (const char *subprocess, int exit_status)
 
       create (fn, CHUNK_SIZE);
       quiet = true;
-                  printf("chunk %zu", i);
 
       CHECK ((handle = open (fn)) > 1, "open \"%s\"", fn);
       write (handle, buf1 + CHUNK_SIZE * i, CHUNK_SIZE);

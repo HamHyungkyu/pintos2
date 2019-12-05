@@ -52,11 +52,13 @@ void frame_thread_remove(struct thread* t){
     lock_acquire(&frame_lock);
     struct list_elem *a;
     struct frame_entry *entry_a;
-    for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
-        entry_a = list_entry(a, struct frame_entry, elem);
+    for(a = list_begin(&frame_table); a != list_end(&frame_table); ){
+        struct list_elem *b = a;
+        a = a->next;        
+        entry_a = list_entry(b, struct frame_entry, elem);
         if(entry_a->thread == t){
-            entry_a->thread = NULL;
-            break;
+            list_remove(b);
+            free(entry_a);
         }
     }
     lock_release(&frame_lock);
@@ -76,23 +78,21 @@ void frame_destory(){
     lock_release(&frame_lock);
 }
 
+
+
 void * frame_kpage(enum palloc_flags flags){
-
     lock_acquire(&frame_lock); 
-
     void * kpage = palloc_get_page(PAL_USER | flags);
     while(!kpage){
         struct frame_entry * frame_eviction = get_frame_eviction();
         struct thread * t = frame_eviction->thread;
          struct stable_entry * entry;
         // void * page = pagedir_get_page(t->pagedir, frame_eviction->user_addr);
-        if(t != NULL){
-            entry = stable_find_entry(t, frame_eviction->user_addr);
-            entry->swap_index = swap_out(frame_eviction->kpage);
-            entry->is_loaded = false;
-            pagedir_clear_page(t->pagedir, frame_eviction->user_addr);
-            palloc_free_page(frame_eviction->kpage);
-        }
+        entry = stable_find_entry(t, frame_eviction->user_addr);
+        entry->swap_index = swap_out(frame_eviction->kpage);
+        entry->is_loaded = false;
+        pagedir_clear_page(t->pagedir, frame_eviction->user_addr);
+        palloc_free_page(frame_eviction->kpage);
         list_remove(&frame_eviction->elem);
         free(frame_eviction);
         kpage = palloc_get_page(PAL_USER | flags);
@@ -112,9 +112,6 @@ struct frame_entry * get_frame_eviction(){
         max_repeat --;
         for(a = list_begin(&frame_table); a != list_end(&frame_table); a = a->next){
             entry_a = list_entry(a, struct frame_entry, elem);
-            if(entry_a->thread == NULL){
-                return entry_a;
-            }
             pagedir = entry_a->thread->pagedir;
             struct stable_entry * sentry = stable_find_entry(entry_a->thread, entry_a->user_addr);
             if(sentry!= NULL){
